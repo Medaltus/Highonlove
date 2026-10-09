@@ -115,14 +115,13 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 /* Brand fonts — style guide: main headers = GT Walsheim Pro (Bold), other
-   headers = Plantin MT Pro Italic, body/report fields = GT Walsheim Pro
+   headers + KPI values = Georgia (High On Love), body/report fields = GT Walsheim Pro
    Light/Medium. Font files sit alongside index.html in the same folder,
    so plain relative paths (no leading slash) work regardless of exactly
    how this path is routed/served. */
 @font-face { font-family:'GT Walsheim Pro Bold';   src:url('GT Walsheim Pro Bold.ttf') format('truetype');   font-weight:700; font-style:normal; }
 @font-face { font-family:'GT Walsheim Pro Medium'; src:url('GT Walsheim Pro Medium.ttf') format('truetype'); font-weight:500; font-style:normal; }
 @font-face { font-family:'GT Walsheim Pro Light';  src:url('GT Walsheim Pro Light.ttf') format('truetype');  font-weight:300; font-style:normal; }
-@font-face { font-family:'Plantin MT Pro Italic';  src:url('Monotype - PlantinMTPro-Italic.otf') format('opentype'); font-style:italic; }
 
 :root {
   --navy:#001F60; --slate:#6B7BA2; --green:#24E9A3; --sand:#F4DFD0; --silver:#CCD3D5;
@@ -134,7 +133,7 @@
   --font:'GT Walsheim Pro Light','DM Sans',system-ui,sans-serif; --mono:'DM Mono','Fira Mono',monospace;
   --font-header:'GT Walsheim Pro Medium','DM Sans',system-ui,sans-serif;
   --font-bold:'GT Walsheim Pro Bold','DM Sans',system-ui,sans-serif;
-  --font-subheader:'Plantin MT Pro Italic',Georgia,'Times New Roman',serif;
+  --font-subheader:Georgia,'Times New Roman',serif; /* High On Love: Georgia for all serif text + KPI values (no Plantin) */
   --font-body-light:'GT Walsheim Pro Light','DM Sans',system-ui,sans-serif;
   --radius:10px; --radius-sm:6px;
 }
@@ -3386,20 +3385,268 @@ details.inci-toggle[open] summary::before{content:'▾ ';}
       <!-- Split into Collagen / Collagen Stick Packs / Bundles 2026-09-25
            per Jaclyn — Stick Packs get their own keyword targeting,
            separate from the general Collagen line. -->
-      <!-- TODO(HOL): category sub-tabs (Performance, Product Portfolio,
-           Keyword Strategy, Competitive Landscape per category) go here once
-           Product Short Name column K and the competitor tabs exist. -->
-      <div class="sub-tabs">
-        <button class="sub-tab active" onclick="showSubTab('ins-products','pt-pending',this)">Products</button>
+      <!-- One sub-tab per Product Short Name column K category. Performance tables are
+           filled by loadActivatorsPerformanceTable (ACTIVATOR_PRODUCTS). TODO(HOL): wire
+           Keyword Strategy / Competitive Landscape once competitor tabs exist. -->
+      <div class="sub-tabs" style="flex-wrap:wrap;border-radius:16px;">
+        <button class="sub-tab active" onclick="showSubTab('ins-products','pt-personal-moisturizer',this)">Personal Moisturizer</button>
+        <button class="sub-tab" onclick="showSubTab('ins-products','pt-body-paint',this)">Body Paint</button>
+        <button class="sub-tab" onclick="showSubTab('ins-products','pt-bath-oil',this)">Bath Oil</button>
+        <button class="sub-tab" onclick="showSubTab('ins-products','pt-body-oil',this)">Body Oil</button>
+        <button class="sub-tab" onclick="showSubTab('ins-products','pt-lip-gloss',this)">Lip Gloss</button>
+        <button class="sub-tab" onclick="showSubTab('ins-products','pt-candle',this)">Candle</button>
+        <button class="sub-tab" onclick="showSubTab('ins-products','pt-lotion',this)">Lotion</button>
+        <button class="sub-tab" onclick="showSubTab('ins-products','pt-lip-balm',this)">Lip Balm</button>
+        <button class="sub-tab" onclick="showSubTab('ins-products','pt-bath-salts',this)">Bath Salts</button>
+        <button class="sub-tab" onclick="showSubTab('ins-products','pt-perfume',this)">Perfume</button>
+        <button class="sub-tab" onclick="showSubTab('ins-products','pt-cosmetic-bag',this)">Cosmetic Bag</button>
+        <button class="sub-tab" onclick="showSubTab('ins-products','pt-firming-body-oil',this)">Firming Body Oil</button>
+        <button class="sub-tab" onclick="showSubTab('ins-products','pt-gua-sha',this)">Gua Sha</button>
+        <button class="sub-tab" onclick="showSubTab('ins-products','pt-scarf',this)">Scarf</button>
+        <button class="sub-tab" onclick="showSubTab('ins-products','pt-tote-bag',this)">Tote Bag</button>
         <button class="sub-tab" onclick="showSubTab('ins-products','pt-bundles',this)">Bundles</button>
       </div>
 
-      <div class="sub-page active" id="pt-pending">
+      <div class="sub-page active" id="pt-personal-moisturizer">
         <div class="card">
-          <div class="card-title">Product Categories — In Progress</div>
-          <div style="font-size:12.5px;color:var(--muted);line-height:1.6;">High On Love's product categories are being set up. Category performance, product portfolio, keyword strategy and competitive landscape will appear here once they're in place.</div>
+          <div class="card-title perf-act-title-dyn" style="margin-bottom:2px;">Performance</div>
+          <div style="overflow-x:auto;">
+            <table class="perf-compare">
+              <thead><tr><th></th><th class="prodcol"><div class="prodcol-name">O Gel</div><div class="prodcol-sku">HOL0001</div></th><th class="prodcol"><div class="prodcol-name">O Oil</div><div class="prodcol-sku">HOL0002</div></th><th class="prodcol"><div class="prodcol-name">Mini O Oil</div><div class="prodcol-sku">HOL0036</div></th><th class="prodcol"><div class="prodcol-name">Diamond O Gel</div><div class="prodcol-sku">HOL0039.1</div></th><th class="prodcol"><div class="prodcol-name">Water Based Lubricant</div><div class="prodcol-sku">HOL0042</div></th></tr></thead>
+              <tbody><tr><td>BSR</td><td id="perf-act-bsr-0001">—</td><td id="perf-act-bsr-0002">—</td><td id="perf-act-bsr-0036">—</td><td id="perf-act-bsr-0039.1">—</td><td id="perf-act-bsr-0042">—</td></tr><tr><td>Subcategory BSR</td><td id="perf-act-subbsr-0001">—</td><td id="perf-act-subbsr-0002">—</td><td id="perf-act-subbsr-0036">—</td><td id="perf-act-subbsr-0039.1">—</td><td id="perf-act-subbsr-0042">—</td></tr><tr><td>Sessions</td><td id="perf-act-sessions-0001">—</td><td id="perf-act-sessions-0002">—</td><td id="perf-act-sessions-0036">—</td><td id="perf-act-sessions-0039.1">—</td><td id="perf-act-sessions-0042">—</td></tr><tr><td class="perf-act-units-label-dyn">Units</td><td id="perf-act-units-0001">—</td><td id="perf-act-units-0002">—</td><td id="perf-act-units-0036">—</td><td id="perf-act-units-0039.1">—</td><td id="perf-act-units-0042">—</td></tr><tr><td>Revenue</td><td id="perf-act-revenue-0001">—</td><td id="perf-act-revenue-0002">—</td><td id="perf-act-revenue-0036">—</td><td id="perf-act-revenue-0039.1">—</td><td id="perf-act-revenue-0042">—</td></tr><tr><td>Conversion</td><td id="perf-act-conv-0001">—</td><td id="perf-act-conv-0002">—</td><td id="perf-act-conv-0036">—</td><td id="perf-act-conv-0039.1">—</td><td id="perf-act-conv-0042">—</td></tr><tr><td>Rating</td><td id="perf-act-rating-0001">—</td><td id="perf-act-rating-0002">—</td><td id="perf-act-rating-0036">—</td><td id="perf-act-rating-0039.1">—</td><td id="perf-act-rating-0042">—</td></tr></tbody>
+            </table>
+          </div>
         </div>
-      </div>
+        <div class="card">
+          <div class="card-title">Keyword Strategy &amp; Competitive Landscape — HOL • Personal Moisturizer</div>
+          <div style="font-size:12.5px;color:var(--muted);line-height:1.6;">Pending — there's no High On Love competitor research tab for this category yet. Once one exists, its keyword strategy and current competitors / category leaders show here.</div>
+        </div>
+      </div><!-- /pt-personal-moisturizer -->
+
+      <div class="sub-page" id="pt-body-paint">
+        <div class="card">
+          <div class="card-title perf-act-title-dyn" style="margin-bottom:2px;">Performance</div>
+          <div style="overflow-x:auto;">
+            <table class="perf-compare">
+              <thead><tr><th></th><th class="prodcol"><div class="prodcol-name">Dark Chocolate Body Paint</div><div class="prodcol-sku">HOL0003</div></th></tr></thead>
+              <tbody><tr><td>BSR</td><td id="perf-act-bsr-0003">—</td></tr><tr><td>Subcategory BSR</td><td id="perf-act-subbsr-0003">—</td></tr><tr><td>Sessions</td><td id="perf-act-sessions-0003">—</td></tr><tr><td class="perf-act-units-label-dyn">Units</td><td id="perf-act-units-0003">—</td></tr><tr><td>Revenue</td><td id="perf-act-revenue-0003">—</td></tr><tr><td>Conversion</td><td id="perf-act-conv-0003">—</td></tr><tr><td>Rating</td><td id="perf-act-rating-0003">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Keyword Strategy &amp; Competitive Landscape — HOL • Body Paint</div>
+          <div style="font-size:12.5px;color:var(--muted);line-height:1.6;">Pending — there's no High On Love competitor research tab for this category yet. Once one exists, its keyword strategy and current competitors / category leaders show here.</div>
+        </div>
+      </div><!-- /pt-body-paint -->
+
+      <div class="sub-page" id="pt-bath-oil">
+        <div class="card">
+          <div class="card-title perf-act-title-dyn" style="margin-bottom:2px;">Performance</div>
+          <div style="overflow-x:auto;">
+            <table class="perf-compare">
+              <thead><tr><th></th><th class="prodcol"><div class="prodcol-name">Bath Oil</div><div class="prodcol-sku">HOL0004</div></th></tr></thead>
+              <tbody><tr><td>BSR</td><td id="perf-act-bsr-0004">—</td></tr><tr><td>Subcategory BSR</td><td id="perf-act-subbsr-0004">—</td></tr><tr><td>Sessions</td><td id="perf-act-sessions-0004">—</td></tr><tr><td class="perf-act-units-label-dyn">Units</td><td id="perf-act-units-0004">—</td></tr><tr><td>Revenue</td><td id="perf-act-revenue-0004">—</td></tr><tr><td>Conversion</td><td id="perf-act-conv-0004">—</td></tr><tr><td>Rating</td><td id="perf-act-rating-0004">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Keyword Strategy &amp; Competitive Landscape — HOL • Bath Oil</div>
+          <div style="font-size:12.5px;color:var(--muted);line-height:1.6;">Pending — there's no High On Love competitor research tab for this category yet. Once one exists, its keyword strategy and current competitors / category leaders show here.</div>
+        </div>
+      </div><!-- /pt-bath-oil -->
+
+      <div class="sub-page" id="pt-body-oil">
+        <div class="card">
+          <div class="card-title perf-act-title-dyn" style="margin-bottom:2px;">Performance</div>
+          <div style="overflow-x:auto;">
+            <table class="perf-compare">
+              <thead><tr><th></th><th class="prodcol"><div class="prodcol-name">Massage Oil (Strawberries &amp; Champagne)</div><div class="prodcol-sku">HOL0005</div></th><th class="prodcol"><div class="prodcol-name">Massage Oil (Lychee Martini)</div><div class="prodcol-sku">HOL0006</div></th><th class="prodcol"><div class="prodcol-name">Massage Oil (Decadent White Chocolate)</div><div class="prodcol-sku">HOL0007</div></th><th class="prodcol"><div class="prodcol-name">Dry Body Oil Spray (Rose)</div><div class="prodcol-sku">HOL0011</div></th><th class="prodcol"><div class="prodcol-name">Massage Oil (Tropical Sunset)</div><div class="prodcol-sku">HOL0038</div></th><th class="prodcol"><div class="prodcol-name">Mini Massage Oil (Stawberries &amp; Champagne)</div><div class="prodcol-sku">HOL0048</div></th><th class="prodcol"><div class="prodcol-name">Dry Body Oil (Pure Passion)</div><div class="prodcol-sku">HOL0061</div></th><th class="prodcol"><div class="prodcol-name">Dry Body Oil (Cashmere Pear)</div><div class="prodcol-sku">HOL0064</div></th><th class="prodcol"><div class="prodcol-name">Shimmer Dry Body Oil</div><div class="prodcol-sku">HOL0066</div></th></tr></thead>
+              <tbody><tr><td>BSR</td><td id="perf-act-bsr-0005">—</td><td id="perf-act-bsr-0006">—</td><td id="perf-act-bsr-0007">—</td><td id="perf-act-bsr-0011">—</td><td id="perf-act-bsr-0038">—</td><td id="perf-act-bsr-0048">—</td><td id="perf-act-bsr-0061">—</td><td id="perf-act-bsr-0064">—</td><td id="perf-act-bsr-0066">—</td></tr><tr><td>Subcategory BSR</td><td id="perf-act-subbsr-0005">—</td><td id="perf-act-subbsr-0006">—</td><td id="perf-act-subbsr-0007">—</td><td id="perf-act-subbsr-0011">—</td><td id="perf-act-subbsr-0038">—</td><td id="perf-act-subbsr-0048">—</td><td id="perf-act-subbsr-0061">—</td><td id="perf-act-subbsr-0064">—</td><td id="perf-act-subbsr-0066">—</td></tr><tr><td>Sessions</td><td id="perf-act-sessions-0005">—</td><td id="perf-act-sessions-0006">—</td><td id="perf-act-sessions-0007">—</td><td id="perf-act-sessions-0011">—</td><td id="perf-act-sessions-0038">—</td><td id="perf-act-sessions-0048">—</td><td id="perf-act-sessions-0061">—</td><td id="perf-act-sessions-0064">—</td><td id="perf-act-sessions-0066">—</td></tr><tr><td class="perf-act-units-label-dyn">Units</td><td id="perf-act-units-0005">—</td><td id="perf-act-units-0006">—</td><td id="perf-act-units-0007">—</td><td id="perf-act-units-0011">—</td><td id="perf-act-units-0038">—</td><td id="perf-act-units-0048">—</td><td id="perf-act-units-0061">—</td><td id="perf-act-units-0064">—</td><td id="perf-act-units-0066">—</td></tr><tr><td>Revenue</td><td id="perf-act-revenue-0005">—</td><td id="perf-act-revenue-0006">—</td><td id="perf-act-revenue-0007">—</td><td id="perf-act-revenue-0011">—</td><td id="perf-act-revenue-0038">—</td><td id="perf-act-revenue-0048">—</td><td id="perf-act-revenue-0061">—</td><td id="perf-act-revenue-0064">—</td><td id="perf-act-revenue-0066">—</td></tr><tr><td>Conversion</td><td id="perf-act-conv-0005">—</td><td id="perf-act-conv-0006">—</td><td id="perf-act-conv-0007">—</td><td id="perf-act-conv-0011">—</td><td id="perf-act-conv-0038">—</td><td id="perf-act-conv-0048">—</td><td id="perf-act-conv-0061">—</td><td id="perf-act-conv-0064">—</td><td id="perf-act-conv-0066">—</td></tr><tr><td>Rating</td><td id="perf-act-rating-0005">—</td><td id="perf-act-rating-0006">—</td><td id="perf-act-rating-0007">—</td><td id="perf-act-rating-0011">—</td><td id="perf-act-rating-0038">—</td><td id="perf-act-rating-0048">—</td><td id="perf-act-rating-0061">—</td><td id="perf-act-rating-0064">—</td><td id="perf-act-rating-0066">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Keyword Strategy &amp; Competitive Landscape — HOL • Body Oil</div>
+          <div style="font-size:12.5px;color:var(--muted);line-height:1.6;">Pending — there's no High On Love competitor research tab for this category yet. Once one exists, its keyword strategy and current competitors / category leaders show here.</div>
+        </div>
+      </div><!-- /pt-body-oil -->
+
+      <div class="sub-page" id="pt-lip-gloss">
+        <div class="card">
+          <div class="card-title perf-act-title-dyn" style="margin-bottom:2px;">Performance</div>
+          <div style="overflow-x:auto;">
+            <table class="perf-compare">
+              <thead><tr><th></th><th class="prodcol"><div class="prodcol-name">Lip Gloss (7 ml)</div><div class="prodcol-sku">HOL0008</div></th><th class="prodcol"><div class="prodcol-name">Mini Lip Gloss (3.5 ml)</div><div class="prodcol-sku">HOL0032</div></th></tr></thead>
+              <tbody><tr><td>BSR</td><td id="perf-act-bsr-0008">—</td><td id="perf-act-bsr-0032">—</td></tr><tr><td>Subcategory BSR</td><td id="perf-act-subbsr-0008">—</td><td id="perf-act-subbsr-0032">—</td></tr><tr><td>Sessions</td><td id="perf-act-sessions-0008">—</td><td id="perf-act-sessions-0032">—</td></tr><tr><td class="perf-act-units-label-dyn">Units</td><td id="perf-act-units-0008">—</td><td id="perf-act-units-0032">—</td></tr><tr><td>Revenue</td><td id="perf-act-revenue-0008">—</td><td id="perf-act-revenue-0032">—</td></tr><tr><td>Conversion</td><td id="perf-act-conv-0008">—</td><td id="perf-act-conv-0032">—</td></tr><tr><td>Rating</td><td id="perf-act-rating-0008">—</td><td id="perf-act-rating-0032">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Keyword Strategy &amp; Competitive Landscape — HOL • Lip Gloss</div>
+          <div style="font-size:12.5px;color:var(--muted);line-height:1.6;">Pending — there's no High On Love competitor research tab for this category yet. Once one exists, its keyword strategy and current competitors / category leaders show here.</div>
+        </div>
+      </div><!-- /pt-lip-gloss -->
+
+      <div class="sub-page" id="pt-candle">
+        <div class="card">
+          <div class="card-title perf-act-title-dyn" style="margin-bottom:2px;">Performance</div>
+          <div style="overflow-x:auto;">
+            <table class="perf-compare">
+              <thead><tr><th></th><th class="prodcol"><div class="prodcol-name">Massage Oil Candle (Rose Bud)</div><div class="prodcol-sku">HOL0010</div></th><th class="prodcol"><div class="prodcol-name">Pink Massage Candle (Strawberries &amp; Champagne)</div><div class="prodcol-sku">HOL0040</div></th><th class="prodcol"><div class="prodcol-name">Pink Massage Candle (Lychee Martini)</div><div class="prodcol-sku">HOL0041</div></th><th class="prodcol"><div class="prodcol-name">Mini Massage Oil Candle Flight</div><div class="prodcol-sku">HOL0044</div></th><th class="prodcol"><div class="prodcol-name">Pure Passion Candle</div><div class="prodcol-sku">HOL0060</div></th></tr></thead>
+              <tbody><tr><td>BSR</td><td id="perf-act-bsr-0010">—</td><td id="perf-act-bsr-0040">—</td><td id="perf-act-bsr-0041">—</td><td id="perf-act-bsr-0044">—</td><td id="perf-act-bsr-0060">—</td></tr><tr><td>Subcategory BSR</td><td id="perf-act-subbsr-0010">—</td><td id="perf-act-subbsr-0040">—</td><td id="perf-act-subbsr-0041">—</td><td id="perf-act-subbsr-0044">—</td><td id="perf-act-subbsr-0060">—</td></tr><tr><td>Sessions</td><td id="perf-act-sessions-0010">—</td><td id="perf-act-sessions-0040">—</td><td id="perf-act-sessions-0041">—</td><td id="perf-act-sessions-0044">—</td><td id="perf-act-sessions-0060">—</td></tr><tr><td class="perf-act-units-label-dyn">Units</td><td id="perf-act-units-0010">—</td><td id="perf-act-units-0040">—</td><td id="perf-act-units-0041">—</td><td id="perf-act-units-0044">—</td><td id="perf-act-units-0060">—</td></tr><tr><td>Revenue</td><td id="perf-act-revenue-0010">—</td><td id="perf-act-revenue-0040">—</td><td id="perf-act-revenue-0041">—</td><td id="perf-act-revenue-0044">—</td><td id="perf-act-revenue-0060">—</td></tr><tr><td>Conversion</td><td id="perf-act-conv-0010">—</td><td id="perf-act-conv-0040">—</td><td id="perf-act-conv-0041">—</td><td id="perf-act-conv-0044">—</td><td id="perf-act-conv-0060">—</td></tr><tr><td>Rating</td><td id="perf-act-rating-0010">—</td><td id="perf-act-rating-0040">—</td><td id="perf-act-rating-0041">—</td><td id="perf-act-rating-0044">—</td><td id="perf-act-rating-0060">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Keyword Strategy &amp; Competitive Landscape — HOL • Candle</div>
+          <div style="font-size:12.5px;color:var(--muted);line-height:1.6;">Pending — there's no High On Love competitor research tab for this category yet. Once one exists, its keyword strategy and current competitors / category leaders show here.</div>
+        </div>
+      </div><!-- /pt-candle -->
+
+      <div class="sub-page" id="pt-lotion">
+        <div class="card">
+          <div class="card-title perf-act-title-dyn" style="margin-bottom:2px;">Performance</div>
+          <div style="overflow-x:auto;">
+            <table class="perf-compare">
+              <thead><tr><th></th><th class="prodcol"><div class="prodcol-name">Soft Touch Hand Cream</div><div class="prodcol-sku">HOL0012</div></th><th class="prodcol"><div class="prodcol-name">Body Butter</div><div class="prodcol-sku">HOL0014</div></th></tr></thead>
+              <tbody><tr><td>BSR</td><td id="perf-act-bsr-0012">—</td><td id="perf-act-bsr-0014">—</td></tr><tr><td>Subcategory BSR</td><td id="perf-act-subbsr-0012">—</td><td id="perf-act-subbsr-0014">—</td></tr><tr><td>Sessions</td><td id="perf-act-sessions-0012">—</td><td id="perf-act-sessions-0014">—</td></tr><tr><td class="perf-act-units-label-dyn">Units</td><td id="perf-act-units-0012">—</td><td id="perf-act-units-0014">—</td></tr><tr><td>Revenue</td><td id="perf-act-revenue-0012">—</td><td id="perf-act-revenue-0014">—</td></tr><tr><td>Conversion</td><td id="perf-act-conv-0012">—</td><td id="perf-act-conv-0014">—</td></tr><tr><td>Rating</td><td id="perf-act-rating-0012">—</td><td id="perf-act-rating-0014">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Keyword Strategy &amp; Competitive Landscape — HOL • Lotion</div>
+          <div style="font-size:12.5px;color:var(--muted);line-height:1.6;">Pending — there's no High On Love competitor research tab for this category yet. Once one exists, its keyword strategy and current competitors / category leaders show here.</div>
+        </div>
+      </div><!-- /pt-lotion -->
+
+      <div class="sub-page" id="pt-lip-balm">
+        <div class="card">
+          <div class="card-title perf-act-title-dyn" style="margin-bottom:2px;">Performance</div>
+          <div style="overflow-x:auto;">
+            <table class="perf-compare">
+              <thead><tr><th></th><th class="prodcol"><div class="prodcol-name">Lip Balm</div><div class="prodcol-sku">HOL0016</div></th></tr></thead>
+              <tbody><tr><td>BSR</td><td id="perf-act-bsr-0016">—</td></tr><tr><td>Subcategory BSR</td><td id="perf-act-subbsr-0016">—</td></tr><tr><td>Sessions</td><td id="perf-act-sessions-0016">—</td></tr><tr><td class="perf-act-units-label-dyn">Units</td><td id="perf-act-units-0016">—</td></tr><tr><td>Revenue</td><td id="perf-act-revenue-0016">—</td></tr><tr><td>Conversion</td><td id="perf-act-conv-0016">—</td></tr><tr><td>Rating</td><td id="perf-act-rating-0016">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Keyword Strategy &amp; Competitive Landscape — HOL • Lip Balm</div>
+          <div style="font-size:12.5px;color:var(--muted);line-height:1.6;">Pending — there's no High On Love competitor research tab for this category yet. Once one exists, its keyword strategy and current competitors / category leaders show here.</div>
+        </div>
+      </div><!-- /pt-lip-balm -->
+
+      <div class="sub-page" id="pt-bath-salts">
+        <div class="card">
+          <div class="card-title perf-act-title-dyn" style="margin-bottom:2px;">Performance</div>
+          <div style="overflow-x:auto;">
+            <table class="perf-compare">
+              <thead><tr><th></th><th class="prodcol"><div class="prodcol-name">Bath Salts</div><div class="prodcol-sku">HOL0043</div></th><th class="prodcol"><div class="prodcol-name">Bath Salts Refill Pouch</div><div class="prodcol-sku">HOL0047</div></th></tr></thead>
+              <tbody><tr><td>BSR</td><td id="perf-act-bsr-0043">—</td><td id="perf-act-bsr-0047">—</td></tr><tr><td>Subcategory BSR</td><td id="perf-act-subbsr-0043">—</td><td id="perf-act-subbsr-0047">—</td></tr><tr><td>Sessions</td><td id="perf-act-sessions-0043">—</td><td id="perf-act-sessions-0047">—</td></tr><tr><td class="perf-act-units-label-dyn">Units</td><td id="perf-act-units-0043">—</td><td id="perf-act-units-0047">—</td></tr><tr><td>Revenue</td><td id="perf-act-revenue-0043">—</td><td id="perf-act-revenue-0047">—</td></tr><tr><td>Conversion</td><td id="perf-act-conv-0043">—</td><td id="perf-act-conv-0047">—</td></tr><tr><td>Rating</td><td id="perf-act-rating-0043">—</td><td id="perf-act-rating-0047">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Keyword Strategy &amp; Competitive Landscape — HOL • Bath Salts</div>
+          <div style="font-size:12.5px;color:var(--muted);line-height:1.6;">Pending — there's no High On Love competitor research tab for this category yet. Once one exists, its keyword strategy and current competitors / category leaders show here.</div>
+        </div>
+      </div><!-- /pt-bath-salts -->
+
+      <div class="sub-page" id="pt-perfume">
+        <div class="card">
+          <div class="card-title perf-act-title-dyn" style="margin-bottom:2px;">Performance</div>
+          <div style="overflow-x:auto;">
+            <table class="perf-compare">
+              <thead><tr><th></th><th class="prodcol"><div class="prodcol-name">Pure Passion Perfume</div><div class="prodcol-sku">HOL0051</div></th><th class="prodcol"><div class="prodcol-name">Travel Size Pure Passion Perfume</div><div class="prodcol-sku">HOL0058</div></th></tr></thead>
+              <tbody><tr><td>BSR</td><td id="perf-act-bsr-0051">—</td><td id="perf-act-bsr-0058">—</td></tr><tr><td>Subcategory BSR</td><td id="perf-act-subbsr-0051">—</td><td id="perf-act-subbsr-0058">—</td></tr><tr><td>Sessions</td><td id="perf-act-sessions-0051">—</td><td id="perf-act-sessions-0058">—</td></tr><tr><td class="perf-act-units-label-dyn">Units</td><td id="perf-act-units-0051">—</td><td id="perf-act-units-0058">—</td></tr><tr><td>Revenue</td><td id="perf-act-revenue-0051">—</td><td id="perf-act-revenue-0058">—</td></tr><tr><td>Conversion</td><td id="perf-act-conv-0051">—</td><td id="perf-act-conv-0058">—</td></tr><tr><td>Rating</td><td id="perf-act-rating-0051">—</td><td id="perf-act-rating-0058">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Keyword Strategy &amp; Competitive Landscape — HOL • Perfume</div>
+          <div style="font-size:12.5px;color:var(--muted);line-height:1.6;">Pending — there's no High On Love competitor research tab for this category yet. Once one exists, its keyword strategy and current competitors / category leaders show here.</div>
+        </div>
+      </div><!-- /pt-perfume -->
+
+      <div class="sub-page" id="pt-cosmetic-bag">
+        <div class="card">
+          <div class="card-title perf-act-title-dyn" style="margin-bottom:2px;">Performance</div>
+          <div style="overflow-x:auto;">
+            <table class="perf-compare">
+              <thead><tr><th></th><th class="prodcol"><div class="prodcol-name">Red Velvet Bag</div><div class="prodcol-sku">HOL0054</div></th></tr></thead>
+              <tbody><tr><td>BSR</td><td id="perf-act-bsr-0054">—</td></tr><tr><td>Subcategory BSR</td><td id="perf-act-subbsr-0054">—</td></tr><tr><td>Sessions</td><td id="perf-act-sessions-0054">—</td></tr><tr><td class="perf-act-units-label-dyn">Units</td><td id="perf-act-units-0054">—</td></tr><tr><td>Revenue</td><td id="perf-act-revenue-0054">—</td></tr><tr><td>Conversion</td><td id="perf-act-conv-0054">—</td></tr><tr><td>Rating</td><td id="perf-act-rating-0054">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Keyword Strategy &amp; Competitive Landscape — HOL • Cosmetic Bag</div>
+          <div style="font-size:12.5px;color:var(--muted);line-height:1.6;">Pending — there's no High On Love competitor research tab for this category yet. Once one exists, its keyword strategy and current competitors / category leaders show here.</div>
+        </div>
+      </div><!-- /pt-cosmetic-bag -->
+
+      <div class="sub-page" id="pt-firming-body-oil">
+        <div class="card">
+          <div class="card-title perf-act-title-dyn" style="margin-bottom:2px;">Performance</div>
+          <div style="overflow-x:auto;">
+            <table class="perf-compare">
+              <thead><tr><th></th><th class="prodcol"><div class="prodcol-name">Firming Body Oil</div><div class="prodcol-sku">HOL0056</div></th></tr></thead>
+              <tbody><tr><td>BSR</td><td id="perf-act-bsr-0056">—</td></tr><tr><td>Subcategory BSR</td><td id="perf-act-subbsr-0056">—</td></tr><tr><td>Sessions</td><td id="perf-act-sessions-0056">—</td></tr><tr><td class="perf-act-units-label-dyn">Units</td><td id="perf-act-units-0056">—</td></tr><tr><td>Revenue</td><td id="perf-act-revenue-0056">—</td></tr><tr><td>Conversion</td><td id="perf-act-conv-0056">—</td></tr><tr><td>Rating</td><td id="perf-act-rating-0056">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Keyword Strategy &amp; Competitive Landscape — HOL • Firming Body Oil</div>
+          <div style="font-size:12.5px;color:var(--muted);line-height:1.6;">Pending — there's no High On Love competitor research tab for this category yet. Once one exists, its keyword strategy and current competitors / category leaders show here.</div>
+        </div>
+      </div><!-- /pt-firming-body-oil -->
+
+      <div class="sub-page" id="pt-gua-sha">
+        <div class="card">
+          <div class="card-title perf-act-title-dyn" style="margin-bottom:2px;">Performance</div>
+          <div style="overflow-x:auto;">
+            <table class="perf-compare">
+              <thead><tr><th></th><th class="prodcol"><div class="prodcol-name">Gua Sha</div><div class="prodcol-sku">HOL0057</div></th></tr></thead>
+              <tbody><tr><td>BSR</td><td id="perf-act-bsr-0057">—</td></tr><tr><td>Subcategory BSR</td><td id="perf-act-subbsr-0057">—</td></tr><tr><td>Sessions</td><td id="perf-act-sessions-0057">—</td></tr><tr><td class="perf-act-units-label-dyn">Units</td><td id="perf-act-units-0057">—</td></tr><tr><td>Revenue</td><td id="perf-act-revenue-0057">—</td></tr><tr><td>Conversion</td><td id="perf-act-conv-0057">—</td></tr><tr><td>Rating</td><td id="perf-act-rating-0057">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Keyword Strategy &amp; Competitive Landscape — HOL • Gua Sha</div>
+          <div style="font-size:12.5px;color:var(--muted);line-height:1.6;">Pending — there's no High On Love competitor research tab for this category yet. Once one exists, its keyword strategy and current competitors / category leaders show here.</div>
+        </div>
+      </div><!-- /pt-gua-sha -->
+
+      <div class="sub-page" id="pt-scarf">
+        <div class="card">
+          <div class="card-title perf-act-title-dyn" style="margin-bottom:2px;">Performance</div>
+          <div style="overflow-x:auto;">
+            <table class="perf-compare">
+              <thead><tr><th></th><th class="prodcol"><div class="prodcol-name">Limited Edition Scarf</div><div class="prodcol-sku">HOL0059</div></th></tr></thead>
+              <tbody><tr><td>BSR</td><td id="perf-act-bsr-0059">—</td></tr><tr><td>Subcategory BSR</td><td id="perf-act-subbsr-0059">—</td></tr><tr><td>Sessions</td><td id="perf-act-sessions-0059">—</td></tr><tr><td class="perf-act-units-label-dyn">Units</td><td id="perf-act-units-0059">—</td></tr><tr><td>Revenue</td><td id="perf-act-revenue-0059">—</td></tr><tr><td>Conversion</td><td id="perf-act-conv-0059">—</td></tr><tr><td>Rating</td><td id="perf-act-rating-0059">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Keyword Strategy &amp; Competitive Landscape — HOL • Scarf</div>
+          <div style="font-size:12.5px;color:var(--muted);line-height:1.6;">Pending — there's no High On Love competitor research tab for this category yet. Once one exists, its keyword strategy and current competitors / category leaders show here.</div>
+        </div>
+      </div><!-- /pt-scarf -->
+
+      <div class="sub-page" id="pt-tote-bag">
+        <div class="card">
+          <div class="card-title perf-act-title-dyn" style="margin-bottom:2px;">Performance</div>
+          <div style="overflow-x:auto;">
+            <table class="perf-compare">
+              <thead><tr><th></th><th class="prodcol"><div class="prodcol-name">Beach Tote Bag</div><div class="prodcol-sku">HOL0067</div></th></tr></thead>
+              <tbody><tr><td>BSR</td><td id="perf-act-bsr-0067">—</td></tr><tr><td>Subcategory BSR</td><td id="perf-act-subbsr-0067">—</td></tr><tr><td>Sessions</td><td id="perf-act-sessions-0067">—</td></tr><tr><td class="perf-act-units-label-dyn">Units</td><td id="perf-act-units-0067">—</td></tr><tr><td>Revenue</td><td id="perf-act-revenue-0067">—</td></tr><tr><td>Conversion</td><td id="perf-act-conv-0067">—</td></tr><tr><td>Rating</td><td id="perf-act-rating-0067">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Keyword Strategy &amp; Competitive Landscape — HOL • Tote Bag</div>
+          <div style="font-size:12.5px;color:var(--muted);line-height:1.6;">Pending — there's no High On Love competitor research tab for this category yet. Once one exists, its keyword strategy and current competitors / category leaders show here.</div>
+        </div>
+      </div><!-- /pt-tote-bag -->
+
 
       <div class="sub-page" id="pt-bundles">
         <div id="pt-bundles-container"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
@@ -3465,6 +3712,7 @@ details.inci-toggle[open] summary::before{content:'▾ ';}
             <button class="sub-tab" onclick="showRevProductTab('revcat-products','revp-0057',this)">Gua Sha</button>
             <button class="sub-tab" onclick="showRevProductTab('revcat-products','revp-0058',this)">Travel Size Pure Passion Perfume</button>
             <button class="sub-tab" onclick="showRevProductTab('revcat-products','revp-0059',this)">Limited Edition Scarf</button>
+            <button class="sub-tab" onclick="showRevProductTab('revcat-products','revp-0060',this)">Pure Passion Candle</button>
             <button class="sub-tab" onclick="showRevProductTab('revcat-products','revp-0061',this)">Dry Body Oil (Pure Passion)</button>
             <button class="sub-tab" onclick="showRevProductTab('revcat-products','revp-0064',this)">Dry Body Oil (Cashmere Pear)</button>
             <button class="sub-tab" onclick="showRevProductTab('revcat-products','revp-0066',this)">Shimmer Dry Body Oil</button>
@@ -3590,6 +3838,10 @@ details.inci-toggle[open] summary::before{content:'▾ ';}
             <div class="sec-lbl" style="margin-top:0;">Select Reviews — Limited Edition Scarf (B0GFGT113P)</div>
             <div id="revlist-0059"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
           </div>
+          <div class="sub-page-inner" id="revp-0060">
+            <div class="sec-lbl" style="margin-top:0;">Select Reviews — Pure Passion Candle (B0HL1ZZWLT)</div>
+            <div id="revlist-0060"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+          </div>
           <div class="sub-page-inner" id="revp-0061">
             <div class="sec-lbl" style="margin-top:0;">Select Reviews — Dry Body Oil (Pure Passion) (B0GJ6Z8LWQ)</div>
             <div id="revlist-0061"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
@@ -3705,6 +3957,7 @@ details.inci-toggle[open] summary::before{content:'▾ ';}
         <button class="sub-tab" onclick="showSubTab('la-products','la-hol0057',this)">Gua Sha (HOL0057)</button>
         <button class="sub-tab" onclick="showSubTab('la-products','la-hol0058',this)">Travel Size Pure Passion Perfume (HOL0058)</button>
         <button class="sub-tab" onclick="showSubTab('la-products','la-hol0059',this)">Limited Edition Scarf (HOL0059)</button>
+        <button class="sub-tab" onclick="showSubTab('la-products','la-hol0060',this)">Pure Passion Candle (HOL0060)</button>
         <button class="sub-tab" onclick="showSubTab('la-products','la-hol0061',this)">Dry Body Oil (Pure Passion) (HOL0061)</button>
         <button class="sub-tab" onclick="showSubTab('la-products','la-hol0064',this)">Dry Body Oil (Cashmere Pear) (HOL0064)</button>
         <button class="sub-tab" onclick="showSubTab('la-products','la-hol0066',this)">Shimmer Dry Body Oil (HOL0066)</button>
@@ -4406,6 +4659,29 @@ details.inci-toggle[open] summary::before{content:'▾ ';}
         <div class="la-card"><div class="la-card-label">Backend Keywords — Spaces Only</div><div class="la-char-info">≤250 chars &nbsp;·&nbsp; <span class="char-pill">— chars used</span></div><div class="la-backend-block" style="color:var(--muted);font-style:italic;">Pending — run Listing Audit (or paste current backend keywords) to populate.</div><button class="la-copy-btn" disabled style="opacity:.5;cursor:not-allowed;">📋 Copy Backend Keywords</button></div>
       </div>
 
+      <div class="sub-page" id="la-hol0060">
+        <div class="la-hero">
+          <div class="la-hero-left">
+            <div class="la-hero-meta">HOL0060 &nbsp;·&nbsp; ASIN B0HL1ZZWLT &nbsp;·&nbsp; High On Love</div>
+            <div class="la-hero-title">Pure Passion Candle</div>
+            <div class="la-hero-tags"><span id="la-hero-tags-hol0060"></span><span class="la-hero-tag bsr">BSR —</span></div>
+          </div>
+          <div class="la-hero-actives">
+            <div class="la-hero-actives-lbl">Hero Actives</div>
+            <div class="la-hero-actives-primary" id="la-hero-primary-hol0060"></div><div class="la-hero-actives-rest" id="la-hero-rest-hol0060"></div>
+          </div>
+        </div>
+        <div class="la-card"><div class="la-card-label">Active Title</div><div class="la-char-info">≤200 chars &nbsp;·&nbsp; <span class="char-pill">— chars used</span></div><div class="la-copy-row"><div class="la-num">·</div><div class="la-copy-block" style="color:var(--muted);font-style:italic;">Pending — no Listing Audit data yet for High On Love. Run Listing Audit, or paste the current live Amazon copy here, to populate this card.</div></div></div>
+        <div class="la-card"><div class="la-card-label">Item Highlights<span class="la-badge new">NEW · JUL 27</span></div><div class="la-card-sublabel">≤125 CHARS · SEARCHABLE · VISIBLE IN SEARCH RESULTS &amp; PDPS</div><div class="la-char-info">≤125 chars &nbsp;·&nbsp; <span class="char-pill">— chars used</span></div><div class="la-copy-row"><div class="la-num">·</div><div class="la-copy-block" style="color:var(--muted);font-style:italic;">Pending — no Listing Audit data yet for High On Love. Run Listing Audit, or paste the current live Amazon copy here, to populate this card.</div></div></div>
+        <div class="la-card"><div class="la-card-label">Active Bullet Points</div><div class="la-card-sublabel">BULLET 1</div><div class="la-copy-row"><div class="la-num">·</div><div class="la-copy-block" style="color:var(--muted);font-style:italic;">Pending — no Listing Audit data yet for High On Love. Run Listing Audit, or paste the current live Amazon copy here, to populate this card.</div></div></div>
+        <div class="la-card"><div class="la-card-label"></div><div class="la-card-sublabel">BULLET 2</div><div class="la-copy-row"><div class="la-num">·</div><div class="la-copy-block" style="color:var(--muted);font-style:italic;">Pending — no Listing Audit data yet for High On Love. Run Listing Audit, or paste the current live Amazon copy here, to populate this card.</div></div></div>
+        <div class="la-card"><div class="la-card-label"></div><div class="la-card-sublabel">BULLET 3</div><div class="la-copy-row"><div class="la-num">·</div><div class="la-copy-block" style="color:var(--muted);font-style:italic;">Pending — no Listing Audit data yet for High On Love. Run Listing Audit, or paste the current live Amazon copy here, to populate this card.</div></div></div>
+        <div class="la-card"><div class="la-card-label"></div><div class="la-card-sublabel">BULLET 4</div><div class="la-copy-row"><div class="la-num">·</div><div class="la-copy-block" style="color:var(--muted);font-style:italic;">Pending — no Listing Audit data yet for High On Love. Run Listing Audit, or paste the current live Amazon copy here, to populate this card.</div></div></div>
+        <div class="la-card"><div class="la-card-label"></div><div class="la-card-sublabel">BULLET 5</div><div class="la-copy-row"><div class="la-num">·</div><div class="la-copy-block" style="color:var(--muted);font-style:italic;">Pending — no Listing Audit data yet for High On Love. Run Listing Audit, or paste the current live Amazon copy here, to populate this card.</div></div></div>
+        <div class="la-card"><div class="la-card-label">Active Product Description</div><div class="la-copy-row"><div class="la-num">·</div><div class="la-copy-block" style="color:var(--muted);font-style:italic;">Pending — no Listing Audit data yet for High On Love. Run Listing Audit, or paste the current live Amazon copy here, to populate this card.</div></div></div>
+        <div class="la-card"><div class="la-card-label">Backend Keywords — Spaces Only</div><div class="la-char-info">≤250 chars &nbsp;·&nbsp; <span class="char-pill">— chars used</span></div><div class="la-backend-block" style="color:var(--muted);font-style:italic;">Pending — run Listing Audit (or paste current backend keywords) to populate.</div><button class="la-copy-btn" disabled style="opacity:.5;cursor:not-allowed;">📋 Copy Backend Keywords</button></div>
+      </div>
+
       <div class="sub-page" id="la-hol0061">
         <div class="la-hero">
           <div class="la-hero-left">
@@ -4682,12 +4958,776 @@ details.inci-toggle[open] summary::before{content:'▾ ';}
       <div><div class="page-title">Organic</div><div class="page-sub">Keyword rank tracking · Fastest path to page 1</div></div>
     </div>
 
-    <!-- TODO(HOL): per-category Organic tabs (Insights + Rank Tracker) go here
-         once categories and a High On Love Keyword Tracker tab exist. -->
-    <div class="card">
-      <div class="card-title">Organic — In Progress</div>
-      <div style="font-size:12.5px;color:var(--muted);line-height:1.6;">Keyword rank tracking for High On Love will appear here once its product categories and Keyword Tracker are set up.</div>
+    <!-- One tab per Product Short Name column K category. Rank Tracker is scoped to that
+         category's ASINs (ORG_PRODUCT_CATEGORIES); fills in once High On Love keywords
+         are in the Keyword Tracker. -->
+    <div class="channel-tabs" style="flex-wrap:wrap;">
+      <button class="ch-tab active" onclick="showChannel('organic','org-personal-moisturizer',this)">Personal Moisturizer</button>
+      <button class="ch-tab" onclick="showChannel('organic','org-body-paint',this)">Body Paint</button>
+      <button class="ch-tab" onclick="showChannel('organic','org-bath-oil',this)">Bath Oil</button>
+      <button class="ch-tab" onclick="showChannel('organic','org-body-oil',this)">Body Oil</button>
+      <button class="ch-tab" onclick="showChannel('organic','org-lip-gloss',this)">Lip Gloss</button>
+      <button class="ch-tab" onclick="showChannel('organic','org-candle',this)">Candle</button>
+      <button class="ch-tab" onclick="showChannel('organic','org-lotion',this)">Lotion</button>
+      <button class="ch-tab" onclick="showChannel('organic','org-lip-balm',this)">Lip Balm</button>
+      <button class="ch-tab" onclick="showChannel('organic','org-bath-salts',this)">Bath Salts</button>
+      <button class="ch-tab" onclick="showChannel('organic','org-perfume',this)">Perfume</button>
+      <button class="ch-tab" onclick="showChannel('organic','org-cosmetic-bag',this)">Cosmetic Bag</button>
+      <button class="ch-tab" onclick="showChannel('organic','org-firming-body-oil',this)">Firming Body Oil</button>
+      <button class="ch-tab" onclick="showChannel('organic','org-gua-sha',this)">Gua Sha</button>
+      <button class="ch-tab" onclick="showChannel('organic','org-scarf',this)">Scarf</button>
+      <button class="ch-tab" onclick="showChannel('organic','org-tote-bag',this)">Tote Bag</button>
     </div>
+
+    <div class="channel-page active" id="org-personal-moisturizer">
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="showSubTab('org-personal-moisturizer','holc1-insights',this)">Insights</button>
+        <button class="sub-tab" onclick="showSubTab('org-personal-moisturizer','holc1-ranktracker',this); window.initRankTracker('personal-moisturizer');">Rank Tracker</button>
+      </div>
+
+      <div class="sub-page active" id="holc1-insights">
+        <div id="holc1-insight-cards"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+        <div class="org-section-title">Fastest Path to Page 1 — Personal Moisturizer</div>
+        <div class="p1-list" id="holc1-p1-list"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+      </div>
+
+      <div class="sub-page" id="holc1-ranktracker">
+        <div class="org-sqp-alert" id="holc1-rt-banner">
+          <span>📈</span>
+          <span id="holc1-rt-banner-text">Loading…</span>
+        </div>
+        <div class="org-sqp-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div class="org-sqp-title" style="margin-bottom:0;">Rank Changes <span class="org-sqp-badge" id="holc1-rt-daterange">Loading…</span></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label style="font-size:11px;color:var(--muted);">Compare to:</label>
+              <select id="holc1-rt-window" onchange="window.renderRankTracker('personal-moisturizer')" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);">
+                <option value="7">1 week ago</option>
+                <option value="28" selected>~4 weeks ago</option>
+                <option value="84">~12 weeks ago</option>
+                <option value="9999">Earliest available</option>
+              </select>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr>
+                <th>Product</th><th>Keyword</th><th>Vol/mo</th>
+                <th id="holc1-rt-col-older">Earlier</th><th id="holc1-rt-col-newer">Latest</th>
+                <th>Change</th><th>Where in Listing</th><th>PPC (Spend · Sales · ACoS)</th><th>Recommended Action</th>
+              </tr></thead>
+              <tbody id="holc1-rt-tbody"><tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted);font-style:italic;">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;">
+            Rows are sorted with anything needing immediate attention first (🔴), then best-performing, down to lowest-performing — not alphabetical or by volume.<br>
+            <strong>Where in Listing</strong> and <strong>PPC</strong> are always live — recomputed from the listing-copy and ad-search-terms sheets on every page load. PPC is exact-match only (a keyword tracked as "massage oil" won't catch spend under "massage oils") — a wrong fuzzy match that looks confident is worse than an honest "No spend."<br>
+            <strong>Recommended Action</strong> shows the ✨ AI-written recommendation (factors in rank change, PPC performance, and listing placement together) whenever one exists for that keyword — generated by Run Analysis, not on every page load, so it's only as fresh as the last time someone clicked it. Keywords Run Analysis hasn't covered yet fall back to a simpler rank-only rule, shown without the ✨.<br>
+            <strong>Where in Listing</strong> reflects the live listing copy as of its last sync only — it can't show when a keyword was added, since the listings sheet doesn't keep dated history.
+          </div>
+        </div>
+      </div>
+    </div><!-- /org-personal-moisturizer -->
+
+    <div class="channel-page" id="org-body-paint">
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="showSubTab('org-body-paint','holc2-insights',this)">Insights</button>
+        <button class="sub-tab" onclick="showSubTab('org-body-paint','holc2-ranktracker',this); window.initRankTracker('body-paint');">Rank Tracker</button>
+      </div>
+
+      <div class="sub-page active" id="holc2-insights">
+        <div id="holc2-insight-cards"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+        <div class="org-section-title">Fastest Path to Page 1 — Body Paint</div>
+        <div class="p1-list" id="holc2-p1-list"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+      </div>
+
+      <div class="sub-page" id="holc2-ranktracker">
+        <div class="org-sqp-alert" id="holc2-rt-banner">
+          <span>📈</span>
+          <span id="holc2-rt-banner-text">Loading…</span>
+        </div>
+        <div class="org-sqp-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div class="org-sqp-title" style="margin-bottom:0;">Rank Changes <span class="org-sqp-badge" id="holc2-rt-daterange">Loading…</span></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label style="font-size:11px;color:var(--muted);">Compare to:</label>
+              <select id="holc2-rt-window" onchange="window.renderRankTracker('body-paint')" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);">
+                <option value="7">1 week ago</option>
+                <option value="28" selected>~4 weeks ago</option>
+                <option value="84">~12 weeks ago</option>
+                <option value="9999">Earliest available</option>
+              </select>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr>
+                <th>Product</th><th>Keyword</th><th>Vol/mo</th>
+                <th id="holc2-rt-col-older">Earlier</th><th id="holc2-rt-col-newer">Latest</th>
+                <th>Change</th><th>Where in Listing</th><th>PPC (Spend · Sales · ACoS)</th><th>Recommended Action</th>
+              </tr></thead>
+              <tbody id="holc2-rt-tbody"><tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted);font-style:italic;">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;">
+            Rows are sorted with anything needing immediate attention first (🔴), then best-performing, down to lowest-performing — not alphabetical or by volume.<br>
+            <strong>Where in Listing</strong> and <strong>PPC</strong> are always live — recomputed from the listing-copy and ad-search-terms sheets on every page load. PPC is exact-match only (a keyword tracked as "massage oil" won't catch spend under "massage oils") — a wrong fuzzy match that looks confident is worse than an honest "No spend."<br>
+            <strong>Recommended Action</strong> shows the ✨ AI-written recommendation (factors in rank change, PPC performance, and listing placement together) whenever one exists for that keyword — generated by Run Analysis, not on every page load, so it's only as fresh as the last time someone clicked it. Keywords Run Analysis hasn't covered yet fall back to a simpler rank-only rule, shown without the ✨.<br>
+            <strong>Where in Listing</strong> reflects the live listing copy as of its last sync only — it can't show when a keyword was added, since the listings sheet doesn't keep dated history.
+          </div>
+        </div>
+      </div>
+    </div><!-- /org-body-paint -->
+
+    <div class="channel-page" id="org-bath-oil">
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="showSubTab('org-bath-oil','holc3-insights',this)">Insights</button>
+        <button class="sub-tab" onclick="showSubTab('org-bath-oil','holc3-ranktracker',this); window.initRankTracker('bath-oil');">Rank Tracker</button>
+      </div>
+
+      <div class="sub-page active" id="holc3-insights">
+        <div id="holc3-insight-cards"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+        <div class="org-section-title">Fastest Path to Page 1 — Bath Oil</div>
+        <div class="p1-list" id="holc3-p1-list"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+      </div>
+
+      <div class="sub-page" id="holc3-ranktracker">
+        <div class="org-sqp-alert" id="holc3-rt-banner">
+          <span>📈</span>
+          <span id="holc3-rt-banner-text">Loading…</span>
+        </div>
+        <div class="org-sqp-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div class="org-sqp-title" style="margin-bottom:0;">Rank Changes <span class="org-sqp-badge" id="holc3-rt-daterange">Loading…</span></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label style="font-size:11px;color:var(--muted);">Compare to:</label>
+              <select id="holc3-rt-window" onchange="window.renderRankTracker('bath-oil')" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);">
+                <option value="7">1 week ago</option>
+                <option value="28" selected>~4 weeks ago</option>
+                <option value="84">~12 weeks ago</option>
+                <option value="9999">Earliest available</option>
+              </select>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr>
+                <th>Product</th><th>Keyword</th><th>Vol/mo</th>
+                <th id="holc3-rt-col-older">Earlier</th><th id="holc3-rt-col-newer">Latest</th>
+                <th>Change</th><th>Where in Listing</th><th>PPC (Spend · Sales · ACoS)</th><th>Recommended Action</th>
+              </tr></thead>
+              <tbody id="holc3-rt-tbody"><tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted);font-style:italic;">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;">
+            Rows are sorted with anything needing immediate attention first (🔴), then best-performing, down to lowest-performing — not alphabetical or by volume.<br>
+            <strong>Where in Listing</strong> and <strong>PPC</strong> are always live — recomputed from the listing-copy and ad-search-terms sheets on every page load. PPC is exact-match only (a keyword tracked as "massage oil" won't catch spend under "massage oils") — a wrong fuzzy match that looks confident is worse than an honest "No spend."<br>
+            <strong>Recommended Action</strong> shows the ✨ AI-written recommendation (factors in rank change, PPC performance, and listing placement together) whenever one exists for that keyword — generated by Run Analysis, not on every page load, so it's only as fresh as the last time someone clicked it. Keywords Run Analysis hasn't covered yet fall back to a simpler rank-only rule, shown without the ✨.<br>
+            <strong>Where in Listing</strong> reflects the live listing copy as of its last sync only — it can't show when a keyword was added, since the listings sheet doesn't keep dated history.
+          </div>
+        </div>
+      </div>
+    </div><!-- /org-bath-oil -->
+
+    <div class="channel-page" id="org-body-oil">
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="showSubTab('org-body-oil','holc4-insights',this)">Insights</button>
+        <button class="sub-tab" onclick="showSubTab('org-body-oil','holc4-ranktracker',this); window.initRankTracker('body-oil');">Rank Tracker</button>
+      </div>
+
+      <div class="sub-page active" id="holc4-insights">
+        <div id="holc4-insight-cards"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+        <div class="org-section-title">Fastest Path to Page 1 — Body Oil</div>
+        <div class="p1-list" id="holc4-p1-list"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+      </div>
+
+      <div class="sub-page" id="holc4-ranktracker">
+        <div class="org-sqp-alert" id="holc4-rt-banner">
+          <span>📈</span>
+          <span id="holc4-rt-banner-text">Loading…</span>
+        </div>
+        <div class="org-sqp-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div class="org-sqp-title" style="margin-bottom:0;">Rank Changes <span class="org-sqp-badge" id="holc4-rt-daterange">Loading…</span></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label style="font-size:11px;color:var(--muted);">Compare to:</label>
+              <select id="holc4-rt-window" onchange="window.renderRankTracker('body-oil')" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);">
+                <option value="7">1 week ago</option>
+                <option value="28" selected>~4 weeks ago</option>
+                <option value="84">~12 weeks ago</option>
+                <option value="9999">Earliest available</option>
+              </select>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr>
+                <th>Product</th><th>Keyword</th><th>Vol/mo</th>
+                <th id="holc4-rt-col-older">Earlier</th><th id="holc4-rt-col-newer">Latest</th>
+                <th>Change</th><th>Where in Listing</th><th>PPC (Spend · Sales · ACoS)</th><th>Recommended Action</th>
+              </tr></thead>
+              <tbody id="holc4-rt-tbody"><tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted);font-style:italic;">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;">
+            Rows are sorted with anything needing immediate attention first (🔴), then best-performing, down to lowest-performing — not alphabetical or by volume.<br>
+            <strong>Where in Listing</strong> and <strong>PPC</strong> are always live — recomputed from the listing-copy and ad-search-terms sheets on every page load. PPC is exact-match only (a keyword tracked as "massage oil" won't catch spend under "massage oils") — a wrong fuzzy match that looks confident is worse than an honest "No spend."<br>
+            <strong>Recommended Action</strong> shows the ✨ AI-written recommendation (factors in rank change, PPC performance, and listing placement together) whenever one exists for that keyword — generated by Run Analysis, not on every page load, so it's only as fresh as the last time someone clicked it. Keywords Run Analysis hasn't covered yet fall back to a simpler rank-only rule, shown without the ✨.<br>
+            <strong>Where in Listing</strong> reflects the live listing copy as of its last sync only — it can't show when a keyword was added, since the listings sheet doesn't keep dated history.
+          </div>
+        </div>
+      </div>
+    </div><!-- /org-body-oil -->
+
+    <div class="channel-page" id="org-lip-gloss">
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="showSubTab('org-lip-gloss','holc5-insights',this)">Insights</button>
+        <button class="sub-tab" onclick="showSubTab('org-lip-gloss','holc5-ranktracker',this); window.initRankTracker('lip-gloss');">Rank Tracker</button>
+      </div>
+
+      <div class="sub-page active" id="holc5-insights">
+        <div id="holc5-insight-cards"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+        <div class="org-section-title">Fastest Path to Page 1 — Lip Gloss</div>
+        <div class="p1-list" id="holc5-p1-list"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+      </div>
+
+      <div class="sub-page" id="holc5-ranktracker">
+        <div class="org-sqp-alert" id="holc5-rt-banner">
+          <span>📈</span>
+          <span id="holc5-rt-banner-text">Loading…</span>
+        </div>
+        <div class="org-sqp-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div class="org-sqp-title" style="margin-bottom:0;">Rank Changes <span class="org-sqp-badge" id="holc5-rt-daterange">Loading…</span></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label style="font-size:11px;color:var(--muted);">Compare to:</label>
+              <select id="holc5-rt-window" onchange="window.renderRankTracker('lip-gloss')" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);">
+                <option value="7">1 week ago</option>
+                <option value="28" selected>~4 weeks ago</option>
+                <option value="84">~12 weeks ago</option>
+                <option value="9999">Earliest available</option>
+              </select>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr>
+                <th>Product</th><th>Keyword</th><th>Vol/mo</th>
+                <th id="holc5-rt-col-older">Earlier</th><th id="holc5-rt-col-newer">Latest</th>
+                <th>Change</th><th>Where in Listing</th><th>PPC (Spend · Sales · ACoS)</th><th>Recommended Action</th>
+              </tr></thead>
+              <tbody id="holc5-rt-tbody"><tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted);font-style:italic;">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;">
+            Rows are sorted with anything needing immediate attention first (🔴), then best-performing, down to lowest-performing — not alphabetical or by volume.<br>
+            <strong>Where in Listing</strong> and <strong>PPC</strong> are always live — recomputed from the listing-copy and ad-search-terms sheets on every page load. PPC is exact-match only (a keyword tracked as "massage oil" won't catch spend under "massage oils") — a wrong fuzzy match that looks confident is worse than an honest "No spend."<br>
+            <strong>Recommended Action</strong> shows the ✨ AI-written recommendation (factors in rank change, PPC performance, and listing placement together) whenever one exists for that keyword — generated by Run Analysis, not on every page load, so it's only as fresh as the last time someone clicked it. Keywords Run Analysis hasn't covered yet fall back to a simpler rank-only rule, shown without the ✨.<br>
+            <strong>Where in Listing</strong> reflects the live listing copy as of its last sync only — it can't show when a keyword was added, since the listings sheet doesn't keep dated history.
+          </div>
+        </div>
+      </div>
+    </div><!-- /org-lip-gloss -->
+
+    <div class="channel-page" id="org-candle">
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="showSubTab('org-candle','holc6-insights',this)">Insights</button>
+        <button class="sub-tab" onclick="showSubTab('org-candle','holc6-ranktracker',this); window.initRankTracker('candle');">Rank Tracker</button>
+      </div>
+
+      <div class="sub-page active" id="holc6-insights">
+        <div id="holc6-insight-cards"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+        <div class="org-section-title">Fastest Path to Page 1 — Candle</div>
+        <div class="p1-list" id="holc6-p1-list"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+      </div>
+
+      <div class="sub-page" id="holc6-ranktracker">
+        <div class="org-sqp-alert" id="holc6-rt-banner">
+          <span>📈</span>
+          <span id="holc6-rt-banner-text">Loading…</span>
+        </div>
+        <div class="org-sqp-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div class="org-sqp-title" style="margin-bottom:0;">Rank Changes <span class="org-sqp-badge" id="holc6-rt-daterange">Loading…</span></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label style="font-size:11px;color:var(--muted);">Compare to:</label>
+              <select id="holc6-rt-window" onchange="window.renderRankTracker('candle')" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);">
+                <option value="7">1 week ago</option>
+                <option value="28" selected>~4 weeks ago</option>
+                <option value="84">~12 weeks ago</option>
+                <option value="9999">Earliest available</option>
+              </select>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr>
+                <th>Product</th><th>Keyword</th><th>Vol/mo</th>
+                <th id="holc6-rt-col-older">Earlier</th><th id="holc6-rt-col-newer">Latest</th>
+                <th>Change</th><th>Where in Listing</th><th>PPC (Spend · Sales · ACoS)</th><th>Recommended Action</th>
+              </tr></thead>
+              <tbody id="holc6-rt-tbody"><tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted);font-style:italic;">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;">
+            Rows are sorted with anything needing immediate attention first (🔴), then best-performing, down to lowest-performing — not alphabetical or by volume.<br>
+            <strong>Where in Listing</strong> and <strong>PPC</strong> are always live — recomputed from the listing-copy and ad-search-terms sheets on every page load. PPC is exact-match only (a keyword tracked as "massage oil" won't catch spend under "massage oils") — a wrong fuzzy match that looks confident is worse than an honest "No spend."<br>
+            <strong>Recommended Action</strong> shows the ✨ AI-written recommendation (factors in rank change, PPC performance, and listing placement together) whenever one exists for that keyword — generated by Run Analysis, not on every page load, so it's only as fresh as the last time someone clicked it. Keywords Run Analysis hasn't covered yet fall back to a simpler rank-only rule, shown without the ✨.<br>
+            <strong>Where in Listing</strong> reflects the live listing copy as of its last sync only — it can't show when a keyword was added, since the listings sheet doesn't keep dated history.
+          </div>
+        </div>
+      </div>
+    </div><!-- /org-candle -->
+
+    <div class="channel-page" id="org-lotion">
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="showSubTab('org-lotion','holc7-insights',this)">Insights</button>
+        <button class="sub-tab" onclick="showSubTab('org-lotion','holc7-ranktracker',this); window.initRankTracker('lotion');">Rank Tracker</button>
+      </div>
+
+      <div class="sub-page active" id="holc7-insights">
+        <div id="holc7-insight-cards"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+        <div class="org-section-title">Fastest Path to Page 1 — Lotion</div>
+        <div class="p1-list" id="holc7-p1-list"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+      </div>
+
+      <div class="sub-page" id="holc7-ranktracker">
+        <div class="org-sqp-alert" id="holc7-rt-banner">
+          <span>📈</span>
+          <span id="holc7-rt-banner-text">Loading…</span>
+        </div>
+        <div class="org-sqp-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div class="org-sqp-title" style="margin-bottom:0;">Rank Changes <span class="org-sqp-badge" id="holc7-rt-daterange">Loading…</span></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label style="font-size:11px;color:var(--muted);">Compare to:</label>
+              <select id="holc7-rt-window" onchange="window.renderRankTracker('lotion')" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);">
+                <option value="7">1 week ago</option>
+                <option value="28" selected>~4 weeks ago</option>
+                <option value="84">~12 weeks ago</option>
+                <option value="9999">Earliest available</option>
+              </select>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr>
+                <th>Product</th><th>Keyword</th><th>Vol/mo</th>
+                <th id="holc7-rt-col-older">Earlier</th><th id="holc7-rt-col-newer">Latest</th>
+                <th>Change</th><th>Where in Listing</th><th>PPC (Spend · Sales · ACoS)</th><th>Recommended Action</th>
+              </tr></thead>
+              <tbody id="holc7-rt-tbody"><tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted);font-style:italic;">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;">
+            Rows are sorted with anything needing immediate attention first (🔴), then best-performing, down to lowest-performing — not alphabetical or by volume.<br>
+            <strong>Where in Listing</strong> and <strong>PPC</strong> are always live — recomputed from the listing-copy and ad-search-terms sheets on every page load. PPC is exact-match only (a keyword tracked as "massage oil" won't catch spend under "massage oils") — a wrong fuzzy match that looks confident is worse than an honest "No spend."<br>
+            <strong>Recommended Action</strong> shows the ✨ AI-written recommendation (factors in rank change, PPC performance, and listing placement together) whenever one exists for that keyword — generated by Run Analysis, not on every page load, so it's only as fresh as the last time someone clicked it. Keywords Run Analysis hasn't covered yet fall back to a simpler rank-only rule, shown without the ✨.<br>
+            <strong>Where in Listing</strong> reflects the live listing copy as of its last sync only — it can't show when a keyword was added, since the listings sheet doesn't keep dated history.
+          </div>
+        </div>
+      </div>
+    </div><!-- /org-lotion -->
+
+    <div class="channel-page" id="org-lip-balm">
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="showSubTab('org-lip-balm','holc8-insights',this)">Insights</button>
+        <button class="sub-tab" onclick="showSubTab('org-lip-balm','holc8-ranktracker',this); window.initRankTracker('lip-balm');">Rank Tracker</button>
+      </div>
+
+      <div class="sub-page active" id="holc8-insights">
+        <div id="holc8-insight-cards"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+        <div class="org-section-title">Fastest Path to Page 1 — Lip Balm</div>
+        <div class="p1-list" id="holc8-p1-list"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+      </div>
+
+      <div class="sub-page" id="holc8-ranktracker">
+        <div class="org-sqp-alert" id="holc8-rt-banner">
+          <span>📈</span>
+          <span id="holc8-rt-banner-text">Loading…</span>
+        </div>
+        <div class="org-sqp-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div class="org-sqp-title" style="margin-bottom:0;">Rank Changes <span class="org-sqp-badge" id="holc8-rt-daterange">Loading…</span></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label style="font-size:11px;color:var(--muted);">Compare to:</label>
+              <select id="holc8-rt-window" onchange="window.renderRankTracker('lip-balm')" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);">
+                <option value="7">1 week ago</option>
+                <option value="28" selected>~4 weeks ago</option>
+                <option value="84">~12 weeks ago</option>
+                <option value="9999">Earliest available</option>
+              </select>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr>
+                <th>Product</th><th>Keyword</th><th>Vol/mo</th>
+                <th id="holc8-rt-col-older">Earlier</th><th id="holc8-rt-col-newer">Latest</th>
+                <th>Change</th><th>Where in Listing</th><th>PPC (Spend · Sales · ACoS)</th><th>Recommended Action</th>
+              </tr></thead>
+              <tbody id="holc8-rt-tbody"><tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted);font-style:italic;">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;">
+            Rows are sorted with anything needing immediate attention first (🔴), then best-performing, down to lowest-performing — not alphabetical or by volume.<br>
+            <strong>Where in Listing</strong> and <strong>PPC</strong> are always live — recomputed from the listing-copy and ad-search-terms sheets on every page load. PPC is exact-match only (a keyword tracked as "massage oil" won't catch spend under "massage oils") — a wrong fuzzy match that looks confident is worse than an honest "No spend."<br>
+            <strong>Recommended Action</strong> shows the ✨ AI-written recommendation (factors in rank change, PPC performance, and listing placement together) whenever one exists for that keyword — generated by Run Analysis, not on every page load, so it's only as fresh as the last time someone clicked it. Keywords Run Analysis hasn't covered yet fall back to a simpler rank-only rule, shown without the ✨.<br>
+            <strong>Where in Listing</strong> reflects the live listing copy as of its last sync only — it can't show when a keyword was added, since the listings sheet doesn't keep dated history.
+          </div>
+        </div>
+      </div>
+    </div><!-- /org-lip-balm -->
+
+    <div class="channel-page" id="org-bath-salts">
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="showSubTab('org-bath-salts','holc9-insights',this)">Insights</button>
+        <button class="sub-tab" onclick="showSubTab('org-bath-salts','holc9-ranktracker',this); window.initRankTracker('bath-salts');">Rank Tracker</button>
+      </div>
+
+      <div class="sub-page active" id="holc9-insights">
+        <div id="holc9-insight-cards"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+        <div class="org-section-title">Fastest Path to Page 1 — Bath Salts</div>
+        <div class="p1-list" id="holc9-p1-list"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+      </div>
+
+      <div class="sub-page" id="holc9-ranktracker">
+        <div class="org-sqp-alert" id="holc9-rt-banner">
+          <span>📈</span>
+          <span id="holc9-rt-banner-text">Loading…</span>
+        </div>
+        <div class="org-sqp-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div class="org-sqp-title" style="margin-bottom:0;">Rank Changes <span class="org-sqp-badge" id="holc9-rt-daterange">Loading…</span></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label style="font-size:11px;color:var(--muted);">Compare to:</label>
+              <select id="holc9-rt-window" onchange="window.renderRankTracker('bath-salts')" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);">
+                <option value="7">1 week ago</option>
+                <option value="28" selected>~4 weeks ago</option>
+                <option value="84">~12 weeks ago</option>
+                <option value="9999">Earliest available</option>
+              </select>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr>
+                <th>Product</th><th>Keyword</th><th>Vol/mo</th>
+                <th id="holc9-rt-col-older">Earlier</th><th id="holc9-rt-col-newer">Latest</th>
+                <th>Change</th><th>Where in Listing</th><th>PPC (Spend · Sales · ACoS)</th><th>Recommended Action</th>
+              </tr></thead>
+              <tbody id="holc9-rt-tbody"><tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted);font-style:italic;">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;">
+            Rows are sorted with anything needing immediate attention first (🔴), then best-performing, down to lowest-performing — not alphabetical or by volume.<br>
+            <strong>Where in Listing</strong> and <strong>PPC</strong> are always live — recomputed from the listing-copy and ad-search-terms sheets on every page load. PPC is exact-match only (a keyword tracked as "massage oil" won't catch spend under "massage oils") — a wrong fuzzy match that looks confident is worse than an honest "No spend."<br>
+            <strong>Recommended Action</strong> shows the ✨ AI-written recommendation (factors in rank change, PPC performance, and listing placement together) whenever one exists for that keyword — generated by Run Analysis, not on every page load, so it's only as fresh as the last time someone clicked it. Keywords Run Analysis hasn't covered yet fall back to a simpler rank-only rule, shown without the ✨.<br>
+            <strong>Where in Listing</strong> reflects the live listing copy as of its last sync only — it can't show when a keyword was added, since the listings sheet doesn't keep dated history.
+          </div>
+        </div>
+      </div>
+    </div><!-- /org-bath-salts -->
+
+    <div class="channel-page" id="org-perfume">
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="showSubTab('org-perfume','holc10-insights',this)">Insights</button>
+        <button class="sub-tab" onclick="showSubTab('org-perfume','holc10-ranktracker',this); window.initRankTracker('perfume');">Rank Tracker</button>
+      </div>
+
+      <div class="sub-page active" id="holc10-insights">
+        <div id="holc10-insight-cards"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+        <div class="org-section-title">Fastest Path to Page 1 — Perfume</div>
+        <div class="p1-list" id="holc10-p1-list"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+      </div>
+
+      <div class="sub-page" id="holc10-ranktracker">
+        <div class="org-sqp-alert" id="holc10-rt-banner">
+          <span>📈</span>
+          <span id="holc10-rt-banner-text">Loading…</span>
+        </div>
+        <div class="org-sqp-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div class="org-sqp-title" style="margin-bottom:0;">Rank Changes <span class="org-sqp-badge" id="holc10-rt-daterange">Loading…</span></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label style="font-size:11px;color:var(--muted);">Compare to:</label>
+              <select id="holc10-rt-window" onchange="window.renderRankTracker('perfume')" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);">
+                <option value="7">1 week ago</option>
+                <option value="28" selected>~4 weeks ago</option>
+                <option value="84">~12 weeks ago</option>
+                <option value="9999">Earliest available</option>
+              </select>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr>
+                <th>Product</th><th>Keyword</th><th>Vol/mo</th>
+                <th id="holc10-rt-col-older">Earlier</th><th id="holc10-rt-col-newer">Latest</th>
+                <th>Change</th><th>Where in Listing</th><th>PPC (Spend · Sales · ACoS)</th><th>Recommended Action</th>
+              </tr></thead>
+              <tbody id="holc10-rt-tbody"><tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted);font-style:italic;">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;">
+            Rows are sorted with anything needing immediate attention first (🔴), then best-performing, down to lowest-performing — not alphabetical or by volume.<br>
+            <strong>Where in Listing</strong> and <strong>PPC</strong> are always live — recomputed from the listing-copy and ad-search-terms sheets on every page load. PPC is exact-match only (a keyword tracked as "massage oil" won't catch spend under "massage oils") — a wrong fuzzy match that looks confident is worse than an honest "No spend."<br>
+            <strong>Recommended Action</strong> shows the ✨ AI-written recommendation (factors in rank change, PPC performance, and listing placement together) whenever one exists for that keyword — generated by Run Analysis, not on every page load, so it's only as fresh as the last time someone clicked it. Keywords Run Analysis hasn't covered yet fall back to a simpler rank-only rule, shown without the ✨.<br>
+            <strong>Where in Listing</strong> reflects the live listing copy as of its last sync only — it can't show when a keyword was added, since the listings sheet doesn't keep dated history.
+          </div>
+        </div>
+      </div>
+    </div><!-- /org-perfume -->
+
+    <div class="channel-page" id="org-cosmetic-bag">
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="showSubTab('org-cosmetic-bag','holc11-insights',this)">Insights</button>
+        <button class="sub-tab" onclick="showSubTab('org-cosmetic-bag','holc11-ranktracker',this); window.initRankTracker('cosmetic-bag');">Rank Tracker</button>
+      </div>
+
+      <div class="sub-page active" id="holc11-insights">
+        <div id="holc11-insight-cards"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+        <div class="org-section-title">Fastest Path to Page 1 — Cosmetic Bag</div>
+        <div class="p1-list" id="holc11-p1-list"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+      </div>
+
+      <div class="sub-page" id="holc11-ranktracker">
+        <div class="org-sqp-alert" id="holc11-rt-banner">
+          <span>📈</span>
+          <span id="holc11-rt-banner-text">Loading…</span>
+        </div>
+        <div class="org-sqp-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div class="org-sqp-title" style="margin-bottom:0;">Rank Changes <span class="org-sqp-badge" id="holc11-rt-daterange">Loading…</span></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label style="font-size:11px;color:var(--muted);">Compare to:</label>
+              <select id="holc11-rt-window" onchange="window.renderRankTracker('cosmetic-bag')" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);">
+                <option value="7">1 week ago</option>
+                <option value="28" selected>~4 weeks ago</option>
+                <option value="84">~12 weeks ago</option>
+                <option value="9999">Earliest available</option>
+              </select>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr>
+                <th>Product</th><th>Keyword</th><th>Vol/mo</th>
+                <th id="holc11-rt-col-older">Earlier</th><th id="holc11-rt-col-newer">Latest</th>
+                <th>Change</th><th>Where in Listing</th><th>PPC (Spend · Sales · ACoS)</th><th>Recommended Action</th>
+              </tr></thead>
+              <tbody id="holc11-rt-tbody"><tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted);font-style:italic;">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;">
+            Rows are sorted with anything needing immediate attention first (🔴), then best-performing, down to lowest-performing — not alphabetical or by volume.<br>
+            <strong>Where in Listing</strong> and <strong>PPC</strong> are always live — recomputed from the listing-copy and ad-search-terms sheets on every page load. PPC is exact-match only (a keyword tracked as "massage oil" won't catch spend under "massage oils") — a wrong fuzzy match that looks confident is worse than an honest "No spend."<br>
+            <strong>Recommended Action</strong> shows the ✨ AI-written recommendation (factors in rank change, PPC performance, and listing placement together) whenever one exists for that keyword — generated by Run Analysis, not on every page load, so it's only as fresh as the last time someone clicked it. Keywords Run Analysis hasn't covered yet fall back to a simpler rank-only rule, shown without the ✨.<br>
+            <strong>Where in Listing</strong> reflects the live listing copy as of its last sync only — it can't show when a keyword was added, since the listings sheet doesn't keep dated history.
+          </div>
+        </div>
+      </div>
+    </div><!-- /org-cosmetic-bag -->
+
+    <div class="channel-page" id="org-firming-body-oil">
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="showSubTab('org-firming-body-oil','holc12-insights',this)">Insights</button>
+        <button class="sub-tab" onclick="showSubTab('org-firming-body-oil','holc12-ranktracker',this); window.initRankTracker('firming-body-oil');">Rank Tracker</button>
+      </div>
+
+      <div class="sub-page active" id="holc12-insights">
+        <div id="holc12-insight-cards"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+        <div class="org-section-title">Fastest Path to Page 1 — Firming Body Oil</div>
+        <div class="p1-list" id="holc12-p1-list"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+      </div>
+
+      <div class="sub-page" id="holc12-ranktracker">
+        <div class="org-sqp-alert" id="holc12-rt-banner">
+          <span>📈</span>
+          <span id="holc12-rt-banner-text">Loading…</span>
+        </div>
+        <div class="org-sqp-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div class="org-sqp-title" style="margin-bottom:0;">Rank Changes <span class="org-sqp-badge" id="holc12-rt-daterange">Loading…</span></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label style="font-size:11px;color:var(--muted);">Compare to:</label>
+              <select id="holc12-rt-window" onchange="window.renderRankTracker('firming-body-oil')" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);">
+                <option value="7">1 week ago</option>
+                <option value="28" selected>~4 weeks ago</option>
+                <option value="84">~12 weeks ago</option>
+                <option value="9999">Earliest available</option>
+              </select>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr>
+                <th>Product</th><th>Keyword</th><th>Vol/mo</th>
+                <th id="holc12-rt-col-older">Earlier</th><th id="holc12-rt-col-newer">Latest</th>
+                <th>Change</th><th>Where in Listing</th><th>PPC (Spend · Sales · ACoS)</th><th>Recommended Action</th>
+              </tr></thead>
+              <tbody id="holc12-rt-tbody"><tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted);font-style:italic;">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;">
+            Rows are sorted with anything needing immediate attention first (🔴), then best-performing, down to lowest-performing — not alphabetical or by volume.<br>
+            <strong>Where in Listing</strong> and <strong>PPC</strong> are always live — recomputed from the listing-copy and ad-search-terms sheets on every page load. PPC is exact-match only (a keyword tracked as "massage oil" won't catch spend under "massage oils") — a wrong fuzzy match that looks confident is worse than an honest "No spend."<br>
+            <strong>Recommended Action</strong> shows the ✨ AI-written recommendation (factors in rank change, PPC performance, and listing placement together) whenever one exists for that keyword — generated by Run Analysis, not on every page load, so it's only as fresh as the last time someone clicked it. Keywords Run Analysis hasn't covered yet fall back to a simpler rank-only rule, shown without the ✨.<br>
+            <strong>Where in Listing</strong> reflects the live listing copy as of its last sync only — it can't show when a keyword was added, since the listings sheet doesn't keep dated history.
+          </div>
+        </div>
+      </div>
+    </div><!-- /org-firming-body-oil -->
+
+    <div class="channel-page" id="org-gua-sha">
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="showSubTab('org-gua-sha','holc13-insights',this)">Insights</button>
+        <button class="sub-tab" onclick="showSubTab('org-gua-sha','holc13-ranktracker',this); window.initRankTracker('gua-sha');">Rank Tracker</button>
+      </div>
+
+      <div class="sub-page active" id="holc13-insights">
+        <div id="holc13-insight-cards"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+        <div class="org-section-title">Fastest Path to Page 1 — Gua Sha</div>
+        <div class="p1-list" id="holc13-p1-list"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+      </div>
+
+      <div class="sub-page" id="holc13-ranktracker">
+        <div class="org-sqp-alert" id="holc13-rt-banner">
+          <span>📈</span>
+          <span id="holc13-rt-banner-text">Loading…</span>
+        </div>
+        <div class="org-sqp-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div class="org-sqp-title" style="margin-bottom:0;">Rank Changes <span class="org-sqp-badge" id="holc13-rt-daterange">Loading…</span></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label style="font-size:11px;color:var(--muted);">Compare to:</label>
+              <select id="holc13-rt-window" onchange="window.renderRankTracker('gua-sha')" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);">
+                <option value="7">1 week ago</option>
+                <option value="28" selected>~4 weeks ago</option>
+                <option value="84">~12 weeks ago</option>
+                <option value="9999">Earliest available</option>
+              </select>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr>
+                <th>Product</th><th>Keyword</th><th>Vol/mo</th>
+                <th id="holc13-rt-col-older">Earlier</th><th id="holc13-rt-col-newer">Latest</th>
+                <th>Change</th><th>Where in Listing</th><th>PPC (Spend · Sales · ACoS)</th><th>Recommended Action</th>
+              </tr></thead>
+              <tbody id="holc13-rt-tbody"><tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted);font-style:italic;">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;">
+            Rows are sorted with anything needing immediate attention first (🔴), then best-performing, down to lowest-performing — not alphabetical or by volume.<br>
+            <strong>Where in Listing</strong> and <strong>PPC</strong> are always live — recomputed from the listing-copy and ad-search-terms sheets on every page load. PPC is exact-match only (a keyword tracked as "massage oil" won't catch spend under "massage oils") — a wrong fuzzy match that looks confident is worse than an honest "No spend."<br>
+            <strong>Recommended Action</strong> shows the ✨ AI-written recommendation (factors in rank change, PPC performance, and listing placement together) whenever one exists for that keyword — generated by Run Analysis, not on every page load, so it's only as fresh as the last time someone clicked it. Keywords Run Analysis hasn't covered yet fall back to a simpler rank-only rule, shown without the ✨.<br>
+            <strong>Where in Listing</strong> reflects the live listing copy as of its last sync only — it can't show when a keyword was added, since the listings sheet doesn't keep dated history.
+          </div>
+        </div>
+      </div>
+    </div><!-- /org-gua-sha -->
+
+    <div class="channel-page" id="org-scarf">
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="showSubTab('org-scarf','holc14-insights',this)">Insights</button>
+        <button class="sub-tab" onclick="showSubTab('org-scarf','holc14-ranktracker',this); window.initRankTracker('scarf');">Rank Tracker</button>
+      </div>
+
+      <div class="sub-page active" id="holc14-insights">
+        <div id="holc14-insight-cards"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+        <div class="org-section-title">Fastest Path to Page 1 — Scarf</div>
+        <div class="p1-list" id="holc14-p1-list"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+      </div>
+
+      <div class="sub-page" id="holc14-ranktracker">
+        <div class="org-sqp-alert" id="holc14-rt-banner">
+          <span>📈</span>
+          <span id="holc14-rt-banner-text">Loading…</span>
+        </div>
+        <div class="org-sqp-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div class="org-sqp-title" style="margin-bottom:0;">Rank Changes <span class="org-sqp-badge" id="holc14-rt-daterange">Loading…</span></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label style="font-size:11px;color:var(--muted);">Compare to:</label>
+              <select id="holc14-rt-window" onchange="window.renderRankTracker('scarf')" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);">
+                <option value="7">1 week ago</option>
+                <option value="28" selected>~4 weeks ago</option>
+                <option value="84">~12 weeks ago</option>
+                <option value="9999">Earliest available</option>
+              </select>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr>
+                <th>Product</th><th>Keyword</th><th>Vol/mo</th>
+                <th id="holc14-rt-col-older">Earlier</th><th id="holc14-rt-col-newer">Latest</th>
+                <th>Change</th><th>Where in Listing</th><th>PPC (Spend · Sales · ACoS)</th><th>Recommended Action</th>
+              </tr></thead>
+              <tbody id="holc14-rt-tbody"><tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted);font-style:italic;">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;">
+            Rows are sorted with anything needing immediate attention first (🔴), then best-performing, down to lowest-performing — not alphabetical or by volume.<br>
+            <strong>Where in Listing</strong> and <strong>PPC</strong> are always live — recomputed from the listing-copy and ad-search-terms sheets on every page load. PPC is exact-match only (a keyword tracked as "massage oil" won't catch spend under "massage oils") — a wrong fuzzy match that looks confident is worse than an honest "No spend."<br>
+            <strong>Recommended Action</strong> shows the ✨ AI-written recommendation (factors in rank change, PPC performance, and listing placement together) whenever one exists for that keyword — generated by Run Analysis, not on every page load, so it's only as fresh as the last time someone clicked it. Keywords Run Analysis hasn't covered yet fall back to a simpler rank-only rule, shown without the ✨.<br>
+            <strong>Where in Listing</strong> reflects the live listing copy as of its last sync only — it can't show when a keyword was added, since the listings sheet doesn't keep dated history.
+          </div>
+        </div>
+      </div>
+    </div><!-- /org-scarf -->
+
+    <div class="channel-page" id="org-tote-bag">
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="showSubTab('org-tote-bag','holc15-insights',this)">Insights</button>
+        <button class="sub-tab" onclick="showSubTab('org-tote-bag','holc15-ranktracker',this); window.initRankTracker('tote-bag');">Rank Tracker</button>
+      </div>
+
+      <div class="sub-page active" id="holc15-insights">
+        <div id="holc15-insight-cards"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+        <div class="org-section-title">Fastest Path to Page 1 — Tote Bag</div>
+        <div class="p1-list" id="holc15-p1-list"><div style="color:var(--muted);font-size:12px;">Loading…</div></div>
+      </div>
+
+      <div class="sub-page" id="holc15-ranktracker">
+        <div class="org-sqp-alert" id="holc15-rt-banner">
+          <span>📈</span>
+          <span id="holc15-rt-banner-text">Loading…</span>
+        </div>
+        <div class="org-sqp-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div class="org-sqp-title" style="margin-bottom:0;">Rank Changes <span class="org-sqp-badge" id="holc15-rt-daterange">Loading…</span></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label style="font-size:11px;color:var(--muted);">Compare to:</label>
+              <select id="holc15-rt-window" onchange="window.renderRankTracker('tote-bag')" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);">
+                <option value="7">1 week ago</option>
+                <option value="28" selected>~4 weeks ago</option>
+                <option value="84">~12 weeks ago</option>
+                <option value="9999">Earliest available</option>
+              </select>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr>
+                <th>Product</th><th>Keyword</th><th>Vol/mo</th>
+                <th id="holc15-rt-col-older">Earlier</th><th id="holc15-rt-col-newer">Latest</th>
+                <th>Change</th><th>Where in Listing</th><th>PPC (Spend · Sales · ACoS)</th><th>Recommended Action</th>
+              </tr></thead>
+              <tbody id="holc15-rt-tbody"><tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted);font-style:italic;">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;">
+            Rows are sorted with anything needing immediate attention first (🔴), then best-performing, down to lowest-performing — not alphabetical or by volume.<br>
+            <strong>Where in Listing</strong> and <strong>PPC</strong> are always live — recomputed from the listing-copy and ad-search-terms sheets on every page load. PPC is exact-match only (a keyword tracked as "massage oil" won't catch spend under "massage oils") — a wrong fuzzy match that looks confident is worse than an honest "No spend."<br>
+            <strong>Recommended Action</strong> shows the ✨ AI-written recommendation (factors in rank change, PPC performance, and listing placement together) whenever one exists for that keyword — generated by Run Analysis, not on every page load, so it's only as fresh as the last time someone clicked it. Keywords Run Analysis hasn't covered yet fall back to a simpler rank-only rule, shown without the ✨.<br>
+            <strong>Where in Listing</strong> reflects the live listing copy as of its last sync only — it can't show when a keyword was added, since the listings sheet doesn't keep dated history.
+          </div>
+        </div>
+      </div>
+    </div><!-- /org-tote-bag -->
 
   </div><!-- /page-organic -->
 
@@ -4731,7 +5771,7 @@ function showPage(id, btn) {
   // shared keyword tracker data now rather than waiting for someone to
   // click into Rank Tracker first. initRankTracker caches internally, so
   // this is a no-op on subsequent visits to the page.
-  // Organic Rank Tracker init removed until High On Love's Organic tabs exist — TODO(HOL)
+  if (id === 'organic' && typeof window.initRankTracker === 'function') window.initRankTracker('personal-moisturizer');
 
   // Export PDF Report button — only shown on the three "performance" pages
   // (Sales, Marketing, Events). Hidden everywhere else (Overview, Inventory,
@@ -11014,8 +12054,74 @@ async function initSnsExternal() {
   // one — this page's category keys and that page's are different
   // concepts that just happen to currently share the same 5 products,
   // and changing one page's grouping shouldn't risk changing the other's.
-  // TODO(HOL): Organic is pending categories + a High On Love Keyword Tracker tab.
-  const ORG_PRODUCT_CATEGORIES = {};
+  // One Organic tab per Product Short Name column K category (HOL • ...).
+  const ORG_PRODUCT_CATEGORIES = {
+    'personal-moisturizer': [
+      { sku: 'HOL0001', asin: 'B07VWRV6BJ', label: 'O Gel' },
+      { sku: 'HOL0002', asin: 'B0B4BHJTDK', label: 'O Oil' },
+      { sku: 'HOL0036', asin: 'B0BBNBVRQG', label: 'Mini O Oil' },
+      { sku: 'HOL0039.1', asin: 'B0C3DZTC71', label: 'Diamond O Gel' },
+      { sku: 'HOL0042', asin: 'B0CW48YNQ9', label: 'Water Based Lubricant' },
+    ],
+    'body-paint': [
+      { sku: 'HOL0003', asin: 'B07PGJBTKN', label: 'Dark Chocolate Body Paint' },
+    ],
+    'bath-oil': [
+      { sku: 'HOL0004', asin: 'B07T95XSM7', label: 'Bath Oil' },
+    ],
+    'body-oil': [
+      { sku: 'HOL0005', asin: 'B07PDHST4K', label: 'Massage Oil (Strawberries & Champagne)' },
+      { sku: 'HOL0006', asin: 'B07PFCPDH1', label: 'Massage Oil (Lychee Martini)' },
+      { sku: 'HOL0007', asin: 'B07VWRVMP6', label: 'Massage Oil (Decadent White Chocolate)' },
+      { sku: 'HOL0011', asin: 'B08D25TDBF', label: 'Dry Body Oil Spray (Rose)' },
+      { sku: 'HOL0038', asin: 'B0BB3M1NJH', label: 'Massage Oil (Tropical Sunset)' },
+      { sku: 'HOL0048', asin: 'B0CZF7J8F2', label: 'Mini Massage Oil (Stawberries & Champagne)' },
+      { sku: 'HOL0061', asin: 'B0GJ6Z8LWQ', label: 'Dry Body Oil (Pure Passion)' },
+      { sku: 'HOL0064', asin: 'B0H52HLFYF', label: 'Dry Body Oil (Cashmere Pear)' },
+      { sku: 'HOL0066', asin: 'B0H5MRR5DG', label: 'Shimmer Dry Body Oil' },
+    ],
+    'lip-gloss': [
+      { sku: 'HOL0008', asin: 'B081K5ZS9P', label: 'Lip Gloss (7 ml)' },
+      { sku: 'HOL0032', asin: 'B0BBJRTCCT', label: 'Mini Lip Gloss (3.5 ml)' },
+    ],
+    'candle': [
+      { sku: 'HOL0010', asin: 'B088KRBFP8', label: 'Massage Oil Candle (Rose Bud)' },
+      { sku: 'HOL0040', asin: 'B0BYQ1V2G1', label: 'Pink Massage Candle (Strawberries & Champagne)' },
+      { sku: 'HOL0041', asin: 'B0BYQDK6KF', label: 'Pink Massage Candle (Lychee Martini)' },
+      { sku: 'HOL0044', asin: 'B0CPL2H354', label: 'Mini Massage Oil Candle Flight' },
+      { sku: 'HOL0060', asin: 'B0HL1ZZWLT', label: 'Pure Passion Candle' },
+    ],
+    'lotion': [
+      { sku: 'HOL0012', asin: 'B08VW51GGV', label: 'Soft Touch Hand Cream' },
+      { sku: 'HOL0014', asin: 'B094WV214S', label: 'Body Butter' },
+    ],
+    'lip-balm': [
+      { sku: 'HOL0016', asin: 'B09PGL3HR2', label: 'Lip Balm' },
+    ],
+    'bath-salts': [
+      { sku: 'HOL0043', asin: 'B0825CVWDW', label: 'Bath Salts' },
+      { sku: 'HOL0047', asin: 'B0D6HNWRZX', label: 'Bath Salts Refill Pouch' },
+    ],
+    'perfume': [
+      { sku: 'HOL0051', asin: 'B0DVZTS4VN', label: 'Pure Passion Perfume' },
+      { sku: 'HOL0058', asin: 'B0G9BPF1BF', label: 'Travel Size Pure Passion Perfume' },
+    ],
+    'cosmetic-bag': [
+      { sku: 'HOL0054', asin: 'B0GBY9NYX2', label: 'Red Velvet Bag' },
+    ],
+    'firming-body-oil': [
+      { sku: 'HOL0056', asin: 'B0FD91W2YK', label: 'Firming Body Oil' },
+    ],
+    'gua-sha': [
+      { sku: 'HOL0057', asin: 'B0FD938LYW', label: 'Gua Sha' },
+    ],
+    'scarf': [
+      { sku: 'HOL0059', asin: 'B0GFGT113P', label: 'Limited Edition Scarf' },
+    ],
+    'tote-bag': [
+      { sku: 'HOL0067', asin: 'B0H8DZ4TY3', label: 'Beach Tote Bag' },
+    ],
+  };
 
   function buildAsinMap(category) {
     const products = ORG_PRODUCT_CATEGORIES[category] || [];
@@ -11092,8 +12198,8 @@ async function initSnsExternal() {
 
   // DOM id prefixes and display labels — one per real Just Bjorn SKU
   // now (was a single 'products' bucket covering all 5).
-  const RT_ID_PREFIX = {};
-  const RT_CATEGORY_LABEL = {};
+  const RT_ID_PREFIX = {'personal-moisturizer': 'holc1', 'body-paint': 'holc2', 'bath-oil': 'holc3', 'body-oil': 'holc4', 'lip-gloss': 'holc5', 'candle': 'holc6', 'lotion': 'holc7', 'lip-balm': 'holc8', 'bath-salts': 'holc9', 'perfume': 'holc10', 'cosmetic-bag': 'holc11', 'firming-body-oil': 'holc12', 'gua-sha': 'holc13', 'scarf': 'holc14', 'tote-bag': 'holc15'};
+  const RT_CATEGORY_LABEL = {'personal-moisturizer': 'Personal Moisturizer', 'body-paint': 'Body Paint', 'bath-oil': 'Bath Oil', 'body-oil': 'Body Oil', 'lip-gloss': 'Lip Gloss', 'candle': 'Candle', 'lotion': 'Lotion', 'lip-balm': 'Lip Balm', 'bath-salts': 'Bath Salts', 'perfume': 'Perfume', 'cosmetic-bag': 'Cosmetic Bag', 'firming-body-oil': 'Firming Body Oil', 'gua-sha': 'Gua Sha', 'scarf': 'Scarf', 'tote-bag': 'Tote Bag'};
 
   function csvUrl() {
     return `https://docs.google.com/spreadsheets/d/${KW_TRACKER_SHEET_ID}/export?format=csv&gid=${KW_TRACKER_GID}&_cb=${Date.now()}`;
@@ -11390,7 +12496,7 @@ async function initSnsExternal() {
   // anymore, kept only in case anything external still references the
   // old name (renamed from initRankTrackerActivators — Just Bjorn has
   // one product line, not évolis's category split).
-  window.initRankTrackerActivators = function () { return Promise.resolve(); }; // TODO(HOL): Organic pending
+  window.initRankTrackerActivators = function () { return window.initRankTracker('personal-moisturizer'); };
 
   window.renderRankTracker = function (category) {
     if (!_kwRows) return; // not loaded yet — initRankTracker will call this once it is
@@ -12838,6 +13944,7 @@ const HOL_MOMENTUM_PRODUCTS = [
   { sku: 'HOL0057', asin: 'B0FD938LYW', name: 'Gua Sha' },
   { sku: 'HOL0058', asin: 'B0G9BPF1BF', name: 'Travel Size Pure Passion Perfume' },
   { sku: 'HOL0059', asin: 'B0GFGT113P', name: 'Limited Edition Scarf' },
+  { sku: 'HOL0060', asin: 'B0HL1ZZWLT', name: 'Pure Passion Candle' },
   { sku: 'HOL0061', asin: 'B0GJ6Z8LWQ', name: 'Dry Body Oil (Pure Passion)' },
   { sku: 'HOL0064', asin: 'B0H52HLFYF', name: 'Dry Body Oil (Cashmere Pear)' },
   { sku: 'HOL0066', asin: 'B0H5MRR5DG', name: 'Shimmer Dry Body Oil' },
@@ -15376,9 +16483,45 @@ function pickPreviousKwRowForAsin(kwRows, asin, currentDate) {
 // Just Bjorn's full 5-SKU catalog (renamed from ACTIVATOR_PRODUCTS — this
 // dashboard has no category split, so all 5 SKUs go in the one Performance
 // table, not just a 3-SKU "Activators" subset).
-// TODO(HOL): fill per category once Product Short Name column K is done —
-// the per-category Performance tables on Insights > Products read this.
-const ACTIVATOR_PRODUCTS = [];
+// High On Love's full catalog — feeds every per-category Performance table on
+// Insights > Products (cells are addressed by SKU, so one list covers all tables).
+const ACTIVATOR_PRODUCTS = [
+  { sku: 'HOL0001', asin: 'B07VWRV6BJ' }, // O Gel · Personal Moisturizer
+  { sku: 'HOL0002', asin: 'B0B4BHJTDK' }, // O Oil · Personal Moisturizer
+  { sku: 'HOL0003', asin: 'B07PGJBTKN' }, // Dark Chocolate Body Paint · Body Paint
+  { sku: 'HOL0004', asin: 'B07T95XSM7' }, // Bath Oil · Bath Oil
+  { sku: 'HOL0005', asin: 'B07PDHST4K' }, // Massage Oil (Strawberries & Champagne) · Body Oil
+  { sku: 'HOL0006', asin: 'B07PFCPDH1' }, // Massage Oil (Lychee Martini) · Body Oil
+  { sku: 'HOL0007', asin: 'B07VWRVMP6' }, // Massage Oil (Decadent White Chocolate) · Body Oil
+  { sku: 'HOL0008', asin: 'B081K5ZS9P' }, // Lip Gloss (7 ml) · Lip Gloss
+  { sku: 'HOL0010', asin: 'B088KRBFP8' }, // Massage Oil Candle (Rose Bud) · Candle
+  { sku: 'HOL0011', asin: 'B08D25TDBF' }, // Dry Body Oil Spray (Rose) · Body Oil
+  { sku: 'HOL0012', asin: 'B08VW51GGV' }, // Soft Touch Hand Cream · Lotion
+  { sku: 'HOL0014', asin: 'B094WV214S' }, // Body Butter · Lotion
+  { sku: 'HOL0016', asin: 'B09PGL3HR2' }, // Lip Balm · Lip Balm
+  { sku: 'HOL0032', asin: 'B0BBJRTCCT' }, // Mini Lip Gloss (3.5 ml) · Lip Gloss
+  { sku: 'HOL0036', asin: 'B0BBNBVRQG' }, // Mini O Oil · Personal Moisturizer
+  { sku: 'HOL0038', asin: 'B0BB3M1NJH' }, // Massage Oil (Tropical Sunset) · Body Oil
+  { sku: 'HOL0039.1', asin: 'B0C3DZTC71' }, // Diamond O Gel · Personal Moisturizer
+  { sku: 'HOL0040', asin: 'B0BYQ1V2G1' }, // Pink Massage Candle (Strawberries & Champagne) · Candle
+  { sku: 'HOL0041', asin: 'B0BYQDK6KF' }, // Pink Massage Candle (Lychee Martini) · Candle
+  { sku: 'HOL0042', asin: 'B0CW48YNQ9' }, // Water Based Lubricant · Personal Moisturizer
+  { sku: 'HOL0043', asin: 'B0825CVWDW' }, // Bath Salts · Bath Salts
+  { sku: 'HOL0044', asin: 'B0CPL2H354' }, // Mini Massage Oil Candle Flight · Candle
+  { sku: 'HOL0047', asin: 'B0D6HNWRZX' }, // Bath Salts Refill Pouch · Bath Salts
+  { sku: 'HOL0048', asin: 'B0CZF7J8F2' }, // Mini Massage Oil (Stawberries & Champagne) · Body Oil
+  { sku: 'HOL0051', asin: 'B0DVZTS4VN' }, // Pure Passion Perfume · Perfume
+  { sku: 'HOL0054', asin: 'B0GBY9NYX2' }, // Red Velvet Bag · Cosmetic Bag
+  { sku: 'HOL0056', asin: 'B0FD91W2YK' }, // Firming Body Oil · Firming Body Oil
+  { sku: 'HOL0057', asin: 'B0FD938LYW' }, // Gua Sha · Gua Sha
+  { sku: 'HOL0058', asin: 'B0G9BPF1BF' }, // Travel Size Pure Passion Perfume · Perfume
+  { sku: 'HOL0059', asin: 'B0GFGT113P' }, // Limited Edition Scarf · Scarf
+  { sku: 'HOL0060', asin: 'B0HL1ZZWLT' }, // Pure Passion Candle · Candle
+  { sku: 'HOL0061', asin: 'B0GJ6Z8LWQ' }, // Dry Body Oil (Pure Passion) · Body Oil
+  { sku: 'HOL0064', asin: 'B0H52HLFYF' }, // Dry Body Oil (Cashmere Pear) · Body Oil
+  { sku: 'HOL0066', asin: 'B0H5MRR5DG' }, // Shimmer Dry Body Oil · Body Oil
+  { sku: 'HOL0067', asin: 'B0H8DZ4TY3' }, // Beach Tote Bag · Tote Bag
+];
 function setPerfCellText(id, text) {
   const el = document.getElementById(id);
   if (el) el.textContent = text;
@@ -15431,11 +16574,9 @@ window.loadActivatorsPerformanceTable = async function() {
     const wmtRows = parseCsvToRows(wmtCsv);
     const webRows = parseCsvToRows(webCsv);
 
-    const titleEl = document.getElementById('perf-act-title');
-    if (titleEl) titleEl.textContent = `Performance — ${OV_MONTH_ABBR[month - 1]} ${year}`;
+    document.querySelectorAll('.perf-act-title-dyn').forEach(el => { el.textContent = `Performance — ${OV_MONTH_ABBR[month - 1]} ${year}`; });
 
-    const unitsLabelEl = document.getElementById('perf-act-units-label');
-    if (unitsLabelEl) unitsLabelEl.textContent = `Units — ${OV_MONTH_ABBR[month - 1]}`;
+    document.querySelectorAll('.perf-act-units-label-dyn').forEach(el => { el.textContent = `Units — ${OV_MONTH_ABBR[month - 1]}`; });
 
     // Row selection updated 2026-08-06 per Jaclyn: now anchored to the most
     // recent Monday specifically (weekly sync cadence), via the shared
@@ -15478,6 +16619,7 @@ window.loadActivatorsPerformanceTable = async function() {
       // Units — Amazon matched by ASIN (some Amazon rows lack SKU per
       // Jaclyn); Walmart/Website matched by SKU (no ASIN on those sheets).
       const amzOrderRows = amzRows.filter(r => (r.asin || '').trim().toUpperCase() === p.asin
+        && (r.status || '').trim().toLowerCase() !== 'cancelled'
         && ovNormalizeDate(r.date).substring(0, 7) === monthPrefix);
       const wmtOrderRows = wmtRows.filter(r => (r.sku || '').trim().toUpperCase() === p.sku
         && ovNormalizeDate(r.date).substring(0, 7) === monthPrefix);
@@ -15498,7 +16640,8 @@ window.loadActivatorsPerformanceTable = async function() {
       //   - Walmart/Website: sum of each order row's own item_price ×
       //     unit_count for the month — the actual transaction price, not
       //     a static one, so sale pricing is captured correctly.
-      const amzRevenue = bizRow ? (parseAmt(bizRow.ordered_product_sales)) : 0;
+      // High On Love: Business Report tab is still empty, so fall back to the orders sheet's own item_price (line total) when there's no Business Report row.
+      const amzRevenue = bizRow ? (parseAmt(bizRow.ordered_product_sales)) : amzOrderRows.reduce((s, r) => s + parseAmt(r.item_price), 0);
       const wmtRevenue = wmtOrderRows.reduce((s, r) => s + parseAmt(r.item_price) * (parseInt(r.unit_count, 10) || 0), 0);
       const webRevenue = webOrderRows.reduce((s, r) => s + parseAmt(r.item_price) * (parseInt(r.unit_count, 10) || 0), 0);
       const totalRevenue = amzRevenue + wmtRevenue + webRevenue;
@@ -15613,6 +16756,7 @@ async function renderCategoryPerformanceTable(containerId, categoryLabel) {
       rowsData.sessions.push(bizRow ? sessions.toLocaleString() : '—');
 
       const amzOrderRows = amzRows.filter(r => (r.asin || '').trim().toUpperCase() === p.asin
+        && (r.status || '').trim().toLowerCase() !== 'cancelled'
         && ovNormalizeDate(r.date).substring(0, 7) === monthPrefix);
       const wmtOrderRows = wmtRows.filter(r => (r.sku || '').trim().toUpperCase() === p.sku
         && ovNormalizeDate(r.date).substring(0, 7) === monthPrefix);
@@ -15624,7 +16768,7 @@ async function renderCategoryPerformanceTable(containerId, categoryLabel) {
       const totalUnits = amzUnits + wmtUnits + webUnits;
       rowsData.units.push(totalUnits.toLocaleString());
 
-      const amzRevenue = bizRow ? parseAmt(bizRow.ordered_product_sales) : 0;
+      const amzRevenue = bizRow ? parseAmt(bizRow.ordered_product_sales) : amzOrderRows.reduce((s, r) => s + parseAmt(r.item_price), 0); // High On Love: orders fallback while the Business Report tab is empty
       const wmtRevenue = wmtOrderRows.reduce((s, r) => s + parseAmt(r.item_price) * (parseInt(r.unit_count, 10) || 0), 0);
       const webRevenue = webOrderRows.reduce((s, r) => s + parseAmt(r.item_price) * (parseInt(r.unit_count, 10) || 0), 0);
       rowsData.revenue.push('$' + (amzRevenue + wmtRevenue + webRevenue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
@@ -16277,6 +17421,7 @@ const REVIEW_CATEGORY_PRODUCTS = {
     { sku: 'HOL0057', asin: 'B0FD938LYW', label: 'Gua Sha' },
     { sku: 'HOL0058', asin: 'B0G9BPF1BF', label: 'Travel Size Pure Passion Perfume' },
     { sku: 'HOL0059', asin: 'B0GFGT113P', label: 'Limited Edition Scarf' },
+    { sku: 'HOL0060', asin: 'B0HL1ZZWLT', label: 'Pure Passion Candle' },
     { sku: 'HOL0061', asin: 'B0GJ6Z8LWQ', label: 'Dry Body Oil (Pure Passion)' },
     { sku: 'HOL0064', asin: 'B0H52HLFYF', label: 'Dry Body Oil (Cashmere Pear)' },
     { sku: 'HOL0066', asin: 'B0H5MRR5DG', label: 'Shimmer Dry Body Oil' },
@@ -19407,6 +20552,7 @@ const HOL_SKUS = [
   {id:'la-hol0057', sku:'HOL0057', name:'Gua Sha', travel:false},
   {id:'la-hol0058', sku:'HOL0058', name:'Travel Size Pure Passion Perfume', travel:false},
   {id:'la-hol0059', sku:'HOL0059', name:'Limited Edition Scarf', travel:false},
+  {id:'la-hol0060', sku:'HOL0060', name:'Pure Passion Candle', travel:false},
   {id:'la-hol0061', sku:'HOL0061', name:'Dry Body Oil (Pure Passion)', travel:false},
   {id:'la-hol0064', sku:'HOL0064', name:'Dry Body Oil (Cashmere Pear)', travel:false},
   {id:'la-hol0066', sku:'HOL0066', name:'Shimmer Dry Body Oil', travel:false},
@@ -19855,6 +21001,7 @@ const SKU_TO_PAGE_ID = {
   'HOL0057':'la-hol0057',
   'HOL0058':'la-hol0058',
   'HOL0059':'la-hol0059',
+  'HOL0060':'la-hol0060',
   'HOL0061':'la-hol0061',
   'HOL0064':'la-hol0064',
   'HOL0066':'la-hol0066',
