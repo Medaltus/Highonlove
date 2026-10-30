@@ -146,6 +146,81 @@
   })();
 })();
 </script>
+<script>
+// ── Amazon Fees (added 2026-10-30) ───────────────────────────────────
+// Sums the orders sheet's "Amazon Estimated fees" column (col P) for the
+// active brand, per month. Only the sync orders sheet (SHEET_ORDERS, a
+// rolling ~90 days) has this column — the historical orders sheet doesn't —
+// so months older than ~90 days return null instead of a wrong $0.
+// Cancelled orders are excluded. Blank fee cells (e.g. still-pending
+// orders) count as 0.
+window.dashAmazonFeesByMonth = (function () {
+  let _cache = null;
+  function parseCsv(text) {
+    const rows = []; let row = [], cur = '', q = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (q) { if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+      else if (c === '"') q = true;
+      else if (c === ',') { row.push(cur); cur = ''; }
+      else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cur); rows.push(row); row = []; cur = ''; }
+      else cur += c;
+    }
+    if (cur !== '' || row.length) { row.push(cur); rows.push(row); }
+    return rows;
+  }
+  function ym(d) {
+    d = String(d || '').trim();
+    let m = d.match(/^(\d{4})-(\d{1,2})/); if (m) return m[1] + '-' + m[2].padStart(2, '0');
+    m = d.match(/^(\d{1,2})\/\d{1,2}\/(\d{4})/); if (m) return m[2] + '-' + m[1].padStart(2, '0');
+    return '';
+  }
+  async function load() {
+    if (_cache) return _cache;
+    _cache = (async () => {
+      const cfg = window.SHEET_CFG.SHEET_ORDERS;
+      if (!cfg.fileId || !cfg.gid) return { byMonth: {}, earliest: '' };
+      const url = `https://docs.google.com/spreadsheets/d/${cfg.fileId}/export?format=csv&gid=${cfg.gid}&_cb=${Date.now()}`;
+      const text = await fetch(url).then(r => r.ok ? r.text() : '').catch(() => '');
+      if (!text || text.trim().startsWith('<')) return { byMonth: {}, earliest: '' };
+      const rows = parseCsv(text.trim());
+      const hdr = rows[0].map(h => h.trim().toLowerCase());
+      let feeIdx = hdr.findIndex(h => h.includes('estimated fee'));
+      if (feeIdx < 0) feeIdx = 15; // col P
+      const dateIdx = hdr.indexOf('date'), statusIdx = hdr.indexOf('status'), brandIdx = hdr.indexOf('brand');
+      const skuIdx = hdr.indexOf('sku') >= 0 ? hdr.indexOf('sku') : hdr.indexOf('skus');
+      const brandId = window.DASH_BRAND.id, prefix = window.DASH_BRAND.prefix;
+      const byMonth = {}; let earliest = '';
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        const b = (r[brandIdx] || '').trim().toLowerCase();
+        const sku = (r[skuIdx] || '').trim().toUpperCase();
+        if (!(b === brandId || (!b && sku.startsWith(prefix)))) continue;
+        const k = ym(r[dateIdx]); if (!k) continue;
+        if (!earliest || k < earliest) earliest = k;
+        if ((r[statusIdx] || '').trim().toLowerCase() === 'cancelled') continue;
+        const fee = parseFloat(String(r[feeIdx] || '').replace(/[$,]/g, '')) || 0;
+        byMonth[k] = (byMonth[k] || 0) + fee;
+      }
+      console.log('[AmazonFees]', brandId, 'by month (orders sheet col P):', JSON.stringify(byMonth));
+      return { byMonth, earliest };
+    })();
+    return _cache;
+  }
+  return async function (year, month) {
+    const { byMonth, earliest } = await load();
+    const k = year + '-' + String(month).padStart(2, '0');
+    if (byMonth[k] != null) return Math.round(byMonth[k] * 100) / 100;
+    // Before the sync sheet's coverage starts there's no fee data at all — say so rather than $0.
+    // The sync sheet keeps a rolling ~90 days, so a month inside that window
+    // with no orders (common for small brands) is a real $0.
+    const w = new Date(); w.setDate(w.getDate() - 90);
+    const windowStart = w.getFullYear() + '-' + String(w.getMonth() + 1).padStart(2, '0');
+    return ((earliest && k >= earliest) || k >= windowStart) ? 0 : null;
+  };
+})();
+</script>
+
 <!-- This key is the shared Medaltus Clerk account's real publishable key, used
      identically across every brand dashboard — NOT a placeholder needing a
      brand-specific value. Per-brand distinction happens via the email-domain
@@ -2485,7 +2560,7 @@ details.inci-toggle[open] summary::before{content:'▾ ';}
       <div class="section-label">Key Performance Metrics</div>
       <div class="kpi-row">
         <div class="kpi-card" id="kpi-pct-revenue-invested"><div class="kpi-label">% Revenue Invested</div><div class="kpi-value">5%</div><div class="kpi-mom flat"></div></div>
-        <div class="kpi-card" id="kpi-amazon-fees"><div class="kpi-label">Amazon Fees</div><div class="kpi-value sm">$613.86</div><div class="kpi-mom flat"></div></div>
+        <div class="kpi-card" id="kpi-amazon-fees"><div class="kpi-label">Amazon Fees</div><div class="kpi-value sm">—</div><div class="kpi-mom flat"></div></div>
         <div class="kpi-card" id="kpi-pct-units-ads"><div class="kpi-label">% Units from Ads</div><div class="kpi-value">26%</div><div class="kpi-mom flat"></div></div>
         <div class="kpi-card" id="kpi-ad-clicks"><div class="kpi-label">Ad Clicks</div><div class="kpi-value">272</div><div class="kpi-mom flat">0% MOM</div></div>
         <div class="kpi-card" id="kpi-ad-impressions"><div class="kpi-label">Ad Impressions</div><div class="kpi-value">85K</div><div class="kpi-mom dn">▼ 38% MOM</div></div>
@@ -2831,7 +2906,7 @@ details.inci-toggle[open] summary::before{content:'▾ ';}
       <div class="section-label">Key Performance Metrics</div>
       <div class="kpi-row">
         <div class="kpi-card" id="mx-kpi-pct-revenue-invested"><div class="kpi-label">% Revenue Invested</div><div class="kpi-value">—</div><div class="kpi-mom flat"></div></div>
-        <div class="kpi-card" id="mx-kpi-amazon-fees"><div class="kpi-label">Amazon Fees</div><div class="kpi-value sm">$613.86</div><div class="kpi-mom flat"></div></div>
+        <div class="kpi-card" id="mx-kpi-amazon-fees"><div class="kpi-label">Amazon Fees</div><div class="kpi-value sm">—</div><div class="kpi-mom flat"></div></div>
         <div class="kpi-card" id="mx-kpi-pct-units-ads"><div class="kpi-label">% Units from Ads</div><div class="kpi-value">—</div><div class="kpi-mom flat"></div></div>
         <div class="kpi-card" id="mx-kpi-ad-clicks"><div class="kpi-label">Ad Clicks</div><div class="kpi-value">—</div><div class="kpi-mom flat"></div></div>
         <div class="kpi-card" id="mx-kpi-ad-impressions"><div class="kpi-label">Ad Impressions</div><div class="kpi-value">—</div><div class="kpi-mom flat"></div></div>
@@ -8123,9 +8198,18 @@ async function initSns() {
         ltdEl.textContent = '$' + Math.round(ltdTotal).toLocaleString();
       }
 
-      // Amazon Fees KPI intentionally left as-is — pending a Finances/Product Fees
-      // API sync (net-new backend job), same shape as AD_SUMMARY. Do not overwrite
-      // with a guess in the meantime.
+      // Amazon Fees — sum of the orders sheet's "Amazon Estimated fees" (col P)
+      // for the month, via window.dashAmazonFeesByMonth (top of <head>).
+      try {
+        const [feesCurr, feesPrev] = await Promise.all([
+          window.dashAmazonFeesByMonth(year, month),
+          window.dashAmazonFeesByMonth(prevYear, prevMonth),
+        ]);
+        setKpiVal('kpi-amazon-fees', feesCurr == null ? '—' : '$' + feesCurr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        setKpiMom('kpi-amazon-fees', (feesCurr == null || feesPrev == null) ? null : pct(feesCurr, feesPrev));
+      } catch (e) {
+        console.warn('[AmazonFees] could not compute Amazon Fees KPI:', e.message);
+      }
 
     } catch (err) {
       console.warn('[HighOnLove] initStewardshipLive failed, charts/KPIs remain at last rendered values:', err.message);
@@ -10959,9 +11043,18 @@ async function initSns() {
         ltdEl.textContent = '$' + Math.round(ltdTotal).toLocaleString();
       }
 
-      // Amazon Fees KPI intentionally left as-is — pending a Finances/Product Fees
-      // API sync (net-new backend job), same shape as AD_SUMMARY. Do not overwrite
-      // with a guess in the meantime.
+      // Amazon Fees — sum of the orders sheet's "Amazon Estimated fees" (col P)
+      // for the month, via window.dashAmazonFeesByMonth (top of <head>).
+      try {
+        const [feesCurr, feesPrev] = await Promise.all([
+          window.dashAmazonFeesByMonth(year, month),
+          window.dashAmazonFeesByMonth(prevYear, prevMonth),
+        ]);
+        setKpiVal('mx-kpi-amazon-fees', feesCurr == null ? '—' : '$' + feesCurr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        setKpiMom('mx-kpi-amazon-fees', (feesCurr == null || feesPrev == null) ? null : pct(feesCurr, feesPrev));
+      } catch (e) {
+        console.warn('[AmazonFees] could not compute Amazon Fees KPI:', e.message);
+      }
 
     } catch (err) {
       console.warn('[HighOnLove] initStewardshipExternal failed, charts/KPIs remain at last rendered values:', err.message);
@@ -22072,7 +22165,7 @@ async function loadAuditResultsFromSheet() {
       // than today's cases — the row simply can't shrink below 80px
       // regardless of what text is next to the logo.
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;min-height:80px;">' +
-        '<span class="pdfx-logo-navy" style="display:inline-block;">' + pdfxLogoHtml('height:80px;width:auto;filter:brightness(0) invert(1);') + '</span>' +
+        '<span class="pdfx-logo-navy" style="display:inline-block;">' + pdfxLogoHtml('height:80px;width:auto;margin-left:-60px;filter:brightness(0) invert(1);') + '</span>' +
         '<div class="pdfx-tagright">' + tagHtml + '</div>' +
       '</div>' +
       '<div class="pdfx-tabs">' + tabsHtml + '</div>' +
@@ -22104,7 +22197,7 @@ async function loadAuditResultsFromSheet() {
         '<div class="pdfx-cover-navy">' +
           (PDFX_WATERMARK_SRC ? '<img src="' + PDFX_WATERMARK_SRC + '" alt="" style="position:absolute;right:-60px;top:-30px;width:640px;height:auto;opacity:0.16;pointer-events:none;">' : '') +
           '<div class="pdfx-cover-toprow">' +
-            '<span class="pdfx-logo-white" style="display:inline-block;">' + pdfxLogoHtml('height:96px;width:auto;filter:brightness(0) invert(1);') + '</span>' +
+            '<span class="pdfx-logo-white" style="display:inline-block;">' + pdfxLogoHtml('height:96px;width:auto;margin-left:-60px;filter:brightness(0) invert(1);') + '</span>' +
             '<div class="pdfx-hdr-right"><div class="pdfx-hdr-tag">Brand Performance Report</div><div class="pdfx-hdr-month">' + pdfxEscape(monthYear) + '</div></div>' +
           '</div>' +
           '<div class="pdfx-cover-eyebrow">Monthly Overview</div>' +
