@@ -40,9 +40,19 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const raw = process.env.SHEET_CONFIG;
+  // Secondary brands (added 2026-10-30): ?brand=prohibition reads
+  // SHEET_CONFIG_PROHIBITION instead of SHEET_CONFIG. Only brands listed
+  // here are accepted, so the query string can't read arbitrary env vars.
+  const SECONDARY_BRANDS = { prohibition: 'SHEET_CONFIG_PROHIBITION' };
+  const brandParam = String((req.query && req.query.brand) || '').toLowerCase();
+  const envName = SECONDARY_BRANDS[brandParam] || 'SHEET_CONFIG';
+  if (brandParam && !SECONDARY_BRANDS[brandParam]) {
+    console.warn(`[sheet-config] unknown brand "${brandParam}" — serving the default SHEET_CONFIG`);
+  }
+
+  const raw = process.env[envName];
   if (!raw) {
-    console.error('[sheet-config] SHEET_CONFIG env var is not set for this deployment.');
+    console.error(`[sheet-config] ${envName} env var is not set for this deployment.`);
     // Return an empty object rather than a hard error — the frontend's
     // bootstrap script already treats a missing/failed config fetch as
     // "show empty states everywhere" rather than a fatal error, so this
@@ -54,7 +64,7 @@ module.exports = async function handler(req, res) {
   try {
     parsed = JSON.parse(raw);
   } catch (e) {
-    console.error('[sheet-config] SHEET_CONFIG env var is not valid JSON:', e.message);
+    console.error(`[sheet-config] ${envName} env var is not valid JSON:`, e.message);
     return res.status(200).json({});
   }
 
@@ -63,7 +73,7 @@ module.exports = async function handler(req, res) {
   // logs rather than silently producing confusing frontend errors later.
   for (const [key, val] of Object.entries(parsed)) {
     if (typeof val !== 'object' || val === null || !('fileId' in val) || !('gid' in val)) {
-      console.warn(`[sheet-config] SHEET_CONFIG key "${key}" is missing fileId/gid — expected { fileId, gid }, got:`, val);
+      console.warn(`[sheet-config] ${envName} key "${key}" is missing fileId/gid — expected { fileId, gid }, got:`, val);
     }
   }
 
