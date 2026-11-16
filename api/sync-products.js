@@ -1,0 +1,1058 @@
+/**
+ * api/cron/sync-products.js
+ * Resumable daily log — one row PER SKU PER DAY (never overwritten), so
+ * inventory history accumulates for stockout/trend analysis. Paired with
+ * trim-products-log.js, which drops rows older than 2 years.
+ *
+ * REPLACES the old sync-products.js entirely. The old version derived
+ * "products" from 13 months of individual order-items API calls (one
+ * order at a time) — that's why it timed out (504 seen 2026-07-06) and
+ * why it had no listing content or inventory data at all. This version
+ * calls the actual right APIs:
+ *   Listings Items API  — title, bullets, description, backend keywords,
+ *                          ingredients, status, issues, B2C price
+ *   FBA Inventory API   — fulfillable/reserved/inbound/unfulfillable
+ *                          quantities
+ *   Catalog Items API   — sales rank
+ *
+ * Scope: only ASINs listed on the master SKU list's "Product Short Name"
+ * tab (SHEET_MASTER_SKU_LIST, gid 164358627) — not a full catalog scan.
+ * That sheet is also where `name` comes from (column C), NOT the API —
+ * per requirements, `name` and `title` are deliberately different columns.
+ * High On Love is hard-excluded — different Amazon seller account,
+ * these credentials don't apply there. SKUs prefixed "C-SVA" are also
+ * excluded — those are website-only inventory, not Amazon listings.
+ *
+ * WHY THIS IS RESUMABLE, NOT ONE SHOT:
+ *   Hundreds of SKUs × 3 API calls each, spaced responsibly, cannot
+ *   finish in one 300s function run — the math doesn't work. Each run
+ *   processes as many SKUs as fit in a safe time budget, stores a cursor
+ *   in _meta, and continues from there next run. Scheduled every 10-15
+ *   minutes; once a day's log is complete, later runs that same day are
+ *   fast no-ops.
+ *
+ * RATE LIMITING — assumption worth verifying on first real run:
+ *   SP-API rate-limits per OPERATION, not globally, so the 3 calls for
+ *   one SKU (different operations) are fired in parallel — safe. The
+ *   1.2s delay is only BETWEEN SKUs, to stay safely under each
+ *   operation's own per-second cap. This number is a conservative
+ *   default, not independently confirmed against Amazon's actual limits
+ *   for these three specific operations — watch the logs on first run
+ *   for 429s and increase if needed.
+ *
+ * Sheet: SHEET_PRODUCTS, one tab per brand.
+ * Columns: date, sku, asin, fulfillable_quantity, reserved_quantity,
+ *   inbound_working_quantity, inbound_shipped_quantity,
+ *   inbound_receiving_quantity, unfulfillable_quantity, total_quantity,
+ *   name, status, sales_ranks, title, item_highlights, bullet_1..5,
+ *   description, backend_keywords, ingredients, item_type_keyword,
+ *   offers, issues, last_synced, purchased_units_90d, days_of_inventory,
+ *   qty_on_hand
+ *
+ * total_quantity (col K), days_of_inventory (col AD), and qty_on_hand
+ * (col AE) are LIVE SPREADSHEET FORMULAS, not code-computed values —
+ * written with valueInputOption=USER_ENTERED so they actually evaluate
+ * rather than store as literal formula-looking text:
+ *   qty_on_hand ("On Hand") = D{row}+E{row}+J{row}
+ *                             (fulfillable + reserved + seller-fulfilled)
+ *   total_quantity ("Available") = AE{row}-E{row}  (qty_on_hand - reserved)
+ *   days_of_inventory            = total_quantity / (purchased_units_90d / 90)
+ *
+ * total_quantity is explicitly DERIVED FROM qty_on_hand minus reserved,
+ * not computed independently — per exact definition given 2026-07-20.
+ * Numerically this still lands on fulfillable+seller_fulfilled (reserved
+ * cancels out), but the formula itself now matches the stated derivation.
+ *
+ * qty_on_hand deliberately excludes inbound (working/shipped/receiving)
+ * — confirmed via Amazon's FBA Inventory API docs that "Inbound" units
+ * are still on their way to Amazon's network, not yet fulfillable/
+ * sellable/physically on hand. It also excludes unfulfillable_quantity
+ * (damaged/expired stock) — physically present but not usable inventory,
+ * per exact definition given 2026-07-20.
+ *
+ * purchased_units_90d (col AC) is summed from the rolling 90-day orders
+ * cache (sheets.orders, same sheet/tab-per-brand every other cron in this
+ * repo uses) — see fetchBrand90dUnits. FAILSAFE: this lookup is fetched
+ * once per brand and wrapped in its own try/catch; if it fails, that
+ * brand's rows just get a blank purchased_units_90d/days_of_inventory for
+ * this run rather than blocking the inventory/listing sync that already
+ * works today.
+ *
+ * ADDED (2026-08-04): purchased_units_90d now combines Amazon + Walmart
+ * for SKUs sold on both channels, per master SKU list column G ("channel":
+ * Amazon / Walmart / Amazon / Walmart). Amazon side stays keyed by ASIN as
+ * before. Walmart side is keyed by SKU — no ASIN concept on that
+ * marketplace. Same failsafe pattern: a failed lookup leaves that
+ * channel's contribution out rather than blocking the run. SKUs not
+ * flagged sellsOnWalmart are completely unaffected — Amazon-only behavior,
+ * unchanged.
+ *
+ * CHANGED (2026-08-13): fetchBrand90dUnits/fetchBrandWalmart90dUnits no
+ * longer re-derive these sums live from the full orders/Walmart-orders
+ * history on every 15-minute run — that was re-reading thousands of rows
+ * per brand up to 36x/day for a number that only meaningfully changes
+ * daily. Both now read a small pre-computed cache (UNITS_90D_CACHE_SHEET_ID)
+ * populated once daily by sync-90d-units-cache.js. Same failsafe behavior,
+ * same return shape, just a cheaper, once-a-day-fresh data source.
+ */
+
+const { spRequest, getSellerId }                        = require('../_spauth');
+const { getAccount, accountForBrand }                   = require('../_account');
+const { ensureTab, readRows, replaceRows, updateRange, ensureRowCapacity } = require('../config/_sheets_client');
+const brands                                            = require('../config/brands');
+const sheets                                            = require('../config/sheets');
+const { sendCronFailureAlert }                          = require('../_alerts');
+
+const MASTER_SHEET_ID  = '1NNRTRQxQl2r4XivAvH700CC39p49GD2xfZlyRNqahGA';
+const MASTER_SHEET_GID = '164358627'; // "Product Short Name" tab: A=asin, B=sku, C=name, D=brand, G=channel (Amazon / Walmart / Amazon / Walmart)
+
+// CHANGED 2026-08-13 — this file no longer reads Walmart orders (or
+// Amazon orders) directly for the 90-day units figures; see
+// fetchBrand90dUnits()/fetchBrandWalmart90dUnits() below. Both now read
+// UNITS_90D_CACHE_SHEET_ID, populated once daily by the new
+// sync-90d-units-cache.js, instead of re-deriving live from the full
+// rolling-90-day orders history on every 15-minute run.
+const UNITS_90D_CACHE_SHEET_ID = process.env.SHEET_90D_UNITS_CACHE; // must be created + set before deploying — see sync-90d-units-cache.js
+
+const META_TAB     = '_meta';
+const META_HEADERS = ['KEY', 'VALUE', 'UPDATED_AT'];
+
+const HEADERS = [
+  'date', 'sku', 'asin',
+  'fulfillable_quantity', 'reserved_quantity', 'inbound_working_quantity',
+  'inbound_shipped_quantity', 'inbound_receiving_quantity',
+  'unfulfillable_quantity', 'seller_fulfilled_quantity', 'total_quantity',
+  'name', 'status', 'sales_ranks', 'title', 'item_highlights',
+  'bullet_1', 'bullet_2', 'bullet_3', 'bullet_4', 'bullet_5',
+  'description', 'backend_keywords', 'ingredients', 'item_type_keyword',
+  'offers', 'issues', 'last_synced',
+  'purchased_units_90d', 'days_of_inventory', 'qty_on_hand',
+];
+
+// ADDED 2026-10-20 — columns after qty_on_hand belong to
+// sync-product-offers.js (alt sellers / Buy Box). This cron never writes them
+// (its row writes stop at column AE), but its header check expects an exact
+// match, and its ?force=true clear step must keep them — so it needs to
+// know they exist.
+const { OFFER_HEADERS, IMAGE_HEADERS = [] } = require('../config/product-offer-columns');
+const SHEET_HEADERS = [...HEADERS, ...OFFER_HEADERS, ...IMAGE_HEADERS];
+// ADDED 2026-11-13 — the images column sits after the offer columns (AL).
+const IMAGES_COL = colLetterOf(SHEET_HEADERS.indexOf('images'));
+
+// Column letters for the formulas below — spelled out once here so a
+// future HEADERS reorder doesn't silently break the formula strings.
+const COL_FULFILLABLE      = 'D';
+const COL_RESERVED         = 'E';
+const COL_SELLER_FULFILLED = 'J';
+const COL_TOTAL_QUANTITY   = 'K'; // "Available"
+const COL_PURCHASED_90D    = 'AC';
+const COL_QTY_ON_HAND      = 'AE';
+
+// CHANGED 2026-11-13 — High On Love removed. It was excluded when this cron
+// could only call Amazon as NewDerm; since 2026-10-06 each SKU uses its own
+// brand's seller account (accountForBrand → 'hol'), but the exclusion was
+// never lifted, so High On Love was never synced.
+const EXCLUDED_BRAND_NAMES = [];
+
+const TIME_BUDGET_MS = 250_000; // stay safely under Vercel's 300s cap
+const INTER_SKU_DELAY_MS = 1200; // conservative default — see rate-limiting note above
+
+module.exports = async (req, res) => {
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const today = toEstIso(new Date()).slice(0, 10); // YYYY-MM-DD -- FIXED 2026-08-19, was UTC-based; this date is used as a snapshot-cursor key by other files' "latest date" lookups, so this shifts which calendar date (Eastern, not UTC) a given run's rows get stamped with
+
+  // ── Diagnostic-only test mode ────────────────────────────────────────
+  // ?testSku=DEC0001&testAsin=B0DRPPFP7Z — bypasses the cursor/masterList
+  // walk entirely and calls buildProductRow for just this one item,
+  // returning the RAW listing/inventory/catalog responses (including any
+  // {__error} objects the Promise.all .catch() below normally swallows
+  // silently — see file header note added 2026-07-22). Never writes to
+  // the sheet. Added specifically because this cron has no other way to
+  // test one SKU without waiting for the resumable cursor to reach it,
+  // which for a brand sitting late in the master list could take several
+  // real invocations.
+  if (req.query.testSku && req.query.testAsin) {
+    let testAccount;
+    try { testAccount = getAccount(req); } // ?account=hol to test a High On Love SKU (ADDED 2026-10-06)
+    catch (err) { return res.status(err.status || 400).json({ error: err.message }); }
+    const testItem = { sku: req.query.testSku, asin: req.query.testAsin, name: '(test mode)', account: testAccount };
+    try {
+      const [listing, inventory, catalog, sfListing] = await Promise.all([
+        fetchListing(testItem.sku, testItem.account, testItem.marketplaceId).catch(err => ({ __error: err.message })),
+        fetchInventory(testItem.sku, testItem.account, testItem.marketplaceId).catch(err => ({ __error: err.message })),
+        fetchCatalog(testItem.asin, testItem.account, testItem.marketplaceId).catch(err => ({ __error: err.message })),
+        fetchListing(`${testItem.sku}-SF`, testItem.account, testItem.marketplaceId).catch(err => ({ __error: err.message })),
+      ]);
+      return res.status(200).json({
+        testMode: true, account: testItem.account, sku: testItem.sku, asin: testItem.asin,
+        listing, inventory, catalog, sfListing,
+      });
+    } catch (err) {
+      return res.status(500).json({ testMode: true, error: err.message });
+    }
+  }
+
+  const force = req.query.force === 'true';
+  // ADDED 2026-08-14 — total SKU volume across all brands grew enough
+  // (Cosmette + skinuva-ca added today, dearcloud/creme-shop already
+  // large) that splitting into two scheduled invocations, each covering
+  // half the brands (config/brands.js's productsSyncGroup field), keeps
+  // each run comfortably within its time budget. Every _meta key below is
+  // namespaced by group so two groups running on overlapping schedules
+  // can NEVER stomp on each other's cursor/completion state — critical,
+  // since they'd otherwise both read/write the exact same
+  // products_log_cursor key and corrupt each other's progress tracking.
+  // Omitting ?group= entirely still works exactly as before (all brands,
+  // unsuffixed meta keys) — useful for manual/debug/backfill runs.
+  const group = (req.query.group || '').trim().toUpperCase() || null;
+  // ADDED 2026-09-17 — same idea as ?group=, one level more specific: lets
+  // a single brand be re-run in isolation (e.g. testing a field-extraction
+  // fix against one brand without burning quota/time reprocessing its
+  // whole group). Gets its own _meta suffix for the exact same reason
+  // group does — without it, a brand-scoped run's cursor/completion state
+  // would collide with the UNSUFFIXED keys a full or group-scoped run also
+  // reads/writes, and a brand run "completing" would wrongly mark the
+  // whole day complete for every other brand too.
+  const onlyBrand = (req.query.brand || '').trim() || null;
+  const metaKey = base => {
+    let key = base;
+    if (group)     key += `_group${group}`;
+    if (onlyBrand) key += `_brand${onlyBrand}`;
+    return key;
+  };
+
+  let meta;
+  try {
+    meta = await readMeta();
+  } catch (err) {
+    await sendCronFailureAlert('sync-products', err.message, { Stage: 'reading _meta tab' });
+    return res.status(500).json({ error: 'Failed to read _meta', detail: err.message });
+  }
+
+  // Brands belonging to this run's group and/or single-brand scope (or
+  // every active brand, if neither was specified) — used both to scope
+  // ?force=true's clear step and to filter the master SKU list below.
+  const scopedBrands = brands.filter(b =>
+    b.active && (!group || b.productsSyncGroup === group) && (!onlyBrand || b.id === onlyBrand)
+  );
+  if ((group || onlyBrand) && scopedBrands.length === 0) {
+    const parts = [];
+    if (group)     parts.push(`productsSyncGroup="${group}"`);
+    if (onlyBrand) parts.push(`id="${onlyBrand}"`);
+    return res.status(400).json({ error: `No active brand matches ${parts.join(' and ')} — check config/brands.js` });
+  }
+
+  let cursor = 0;
+  if (force) {
+    // Remove any rows already written for TODAY (across this run's scoped
+    // brands only — a group-scoped force run must never touch the OTHER
+    // group's brands) before reprocessing. Every other day's history is
+    // untouched.
+    try {
+      await clearRowsForDate(today, scopedBrands);
+    } catch (err) {
+      await sendCronFailureAlert('sync-products', err.message, { Stage: "clearing today's rows for ?force=true" });
+      return res.status(500).json({ error: 'Failed to clear today\'s existing rows before forced re-run', detail: err.message });
+    }
+    console.log(`[sync-products] force=true${group ? ` (group ${group})` : ''}${onlyBrand ? ` (brand ${onlyBrand})` : ''} — cleared today's (${today}) existing rows, restarting from cursor 0`);
+  } else if (meta[metaKey('products_log_date')] === today) {
+    if (meta[metaKey('products_log_complete')] === 'true') {
+      return res.status(200).json({ message: `Already completed for ${today}${group ? ` (group ${group})` : ''}${onlyBrand ? ` (brand ${onlyBrand})` : ''}. Pass ?force=true to overwrite today's rows and reprocess (e.g. after a column/logic change).` });
+    }
+    cursor = parseInt(meta[metaKey('products_log_cursor')] || '0', 10) || 0;
+  }
+  // else: new day — cursor resets to 0, starting a fresh daily log
+
+  let masterList;
+  try {
+    masterList = await fetchMasterSkuList();
+  } catch (err) {
+    await sendCronFailureAlert('sync-products', err.message, { Stage: 'fetching master SKU list' });
+    return res.status(500).json({ error: 'Failed to read master SKU list', detail: err.message });
+  }
+
+  if (group || onlyBrand) {
+    const scopedTabNames = new Set(scopedBrands.map(b => b.tabName));
+    masterList = masterList.filter(item => scopedTabNames.has(item.brandTabName));
+  }
+
+  const totalCount = masterList.length;
+  const startTime  = Date.now();
+  const nowIso      = toEstIso(new Date()); // FIXED 2026-08-19 -- was UTC
+
+  let processed = 0;
+  let skippedAlreadyWritten = 0; // FIXED 2026-08-31 -- see note below
+  let i = cursor;
+  const tabTokens = {};
+  const tabNextRow = {};       // brandTabName -> next row number to write to
+  const writtenTodaySets = {}; // brandTabName -> Set of SKUs already written for `today` -- FIXED 2026-08-31
+  const brand90dMaps = {};     // brandTabName -> { [asin]: unitsSoldLast90d } — see fetchBrand90dUnits
+  const walmart90dMaps = {};   // brandTabName -> { [sku]: unitsSoldLast90d }  — see fetchBrandWalmart90dUnits, only populated for sellsOnWalmart SKUs
+  const failedSkus = [];
+
+  for (; i < masterList.length; i++) {
+    if (Date.now() - startTime > TIME_BUDGET_MS) break;
+
+    const item = masterList[i];
+    try {
+      if (!tabTokens[item.brandTabName]) {
+        tabTokens[item.brandTabName] = await ensureTab(sheets.products, item.brandTabName, SHEET_HEADERS);
+        // ADDED 2026-11-13 — make room for the images column and label it.
+        await prepareImagesColumn(item.brandTabName, tabTokens[item.brandTabName])
+          .catch(err => console.warn(`[sync-products] ${item.brandTabName} — images column setup failed (row writes continue without images):`, err.message));
+        const existingRows = await readRows(sheets.products, item.brandTabName);
+        tabNextRow[item.brandTabName] = existingRows.length + 2; // +1 for header row, +1 to move past the last existing row
+
+        // FIXED 2026-08-31 — real incident, traced to 2026-08-04: the
+        // cursor (which masterList INDEX to resume from) and tabNextRow
+        // (which SHEET ROW to write to) are two independent counters.
+        // This only stays correct if masterList is perfectly identical —
+        // same order, same items — across every run within the same
+        // day. A mid-day code deploy (this file's own 2026-08-04 change,
+        // adding Walmart channel detection) can change what
+        // fetchMasterSkuList() returns or how it's ordered, meaning a
+        // later run's cursor no longer points to "everything after what
+        // was already written." Confirmed live: creme-shop had 1,233
+        // duplicate (date, sku) pairs (1,478 excess rows) concentrated
+        // on exactly 2026-08-04, which silently helped push the tab past
+        // its grid's row limit. Rather than trust the cursor index
+        // alone, this set makes the write step itself idempotent: any
+        // SKU already written for TODAY specifically gets skipped
+        // outright, regardless of what the cursor says, so a masterList
+        // shift mid-day can no longer cause a duplicate write even if
+        // the cursor math itself goes out of sync.
+        // FIXED 2026-09-17 — real incident: ?force=true cleared today's
+        // rows via clearRowsForDate() (its own read+write) a moment
+        // earlier, but this SEPARATE readRows() call right here raced
+        // ahead of that write's propagation — Sheets API reads immediately
+        // following a write aren't guaranteed to reflect it yet. The read
+        // saw the stale, pre-clear rows, writtenTodaySets ended up with
+        // every SKU in it, and the whole run (370/370 SKUs, group B)
+        // skipped everything as "already written" despite force=true
+        // having just cleared it. Since force explicitly means "today's
+        // rows for this brand don't exist anymore" — we know that
+        // deterministically from our own action, not from re-reading —
+        // there's no need to re-derive it from a read that can race
+        // against its own write. Start empty instead whenever force=true.
+        writtenTodaySets[item.brandTabName] = force
+          ? new Set()
+          : new Set(existingRows.filter(r => normalizeSheetDate(r.date) === today).map(r => (r.sku || '').trim().toUpperCase()));
+
+        // ADDED 2026-08-14 — real production failure: creme-shop's grid
+        // (10776 rows) was smaller than the row this run needed to write
+        // to, and the explicit-range write this file uses (see the
+        // updateRange call below, and its own comment on why) can't
+        // auto-grow a sheet's grid the way appendRows used to — every
+        // write past the grid's current size failed outright with a 400
+        // "exceeds grid limits". Growing once per brand per run, here,
+        // with a generous buffer (see ensureRowCapacity), means this
+        // should only rarely need to fire at all going forward.
+        //
+        // FIXED 2026-09-02 — real incident: dearcloud (195 SKUs). This
+        // call used to check capacity for ONLY the run's starting row
+        // (tabNextRow at the moment this brand tab is first seen), not
+        // for every row the rest of THIS SAME RUN was about to write. A
+        // run can start safely within the grid and still write enough
+        // rows in one pass to cross the boundary partway through — this
+        // brand's grid was 7915 rows, the run started comfortably inside
+        // that, and by SKU ~53 of 195 the running row count had climbed
+        // past 7915 with capacity never re-checked. Every SKU after that
+        // point failed identically (see the tabNextRow note below for why
+        // it was EVERY SKU, not just the ones actually past the limit).
+        // Sizing this call to the full brand batch (worst case: every
+        // remaining SKU for this brand still needs a fresh row) instead
+        // of just the starting row means the grid is grown ONCE, up
+        // front, for everything this run could possibly write.
+        const brandSkuCount = masterList.filter(x => x.brandTabName === item.brandTabName).length;
+        await ensureRowCapacity(sheets.products, item.brandTabName, tabNextRow[item.brandTabName] + brandSkuCount, tabTokens[item.brandTabName]);
+      }
+
+      // Skip outright if this exact SKU already has a row for today —
+      // see the FIXED 2026-08-31 note above. No API calls, no write,
+      // just move on; this SKU is already correctly represented in
+      // today's log from an earlier run. Deliberately checked BEFORE the
+      // inter-SKU sleep below — a skipped SKU makes zero SP-API calls,
+      // so there's nothing to rate-limit for it. A run resuming from a
+      // stale cursor pointing at already-written SKUs no longer wastes
+      // its whole time budget sleeping for skips it was going to make
+      // anyway.
+      if (writtenTodaySets[item.brandTabName]?.has(item.sku.toUpperCase())) {
+        skippedAlreadyWritten++;
+        continue;
+      }
+
+      if (i > cursor) await sleep(INTER_SKU_DELAY_MS);
+
+      // FAILSAFE: 90-day units lookup is fetched once per brand and never
+      // throws out of this block — if it fails, that brand's SKUs just get
+      // a blank purchased_units_90d/days_of_inventory this run rather than
+      // blocking the inventory/listing data that already works today.
+      if (!(item.brandTabName in brand90dMaps)) {
+        try {
+          brand90dMaps[item.brandTabName] = await fetchBrand90dUnits(item.brandTabName);
+        } catch (err) {
+          console.warn(`[sync-products] ${item.brandTabName} — 90-day units lookup failed, leaving purchased_units_90d blank this run:`, err.message);
+          brand90dMaps[item.brandTabName] = {};
+        }
+      }
+
+      // Walmart side — only fetched for brands that actually have a
+      // sellsOnWalmart SKU, and only once per brand (same lazy-cache
+      // pattern as the Amazon lookup above). Same failsafe: a failure here
+      // never blocks the run, it just leaves the Walmart contribution out
+      // of purchased_units_90d for this brand this run.
+      if (item.sellsOnWalmart && !(item.brandTabName in walmart90dMaps)) {
+        try {
+          walmart90dMaps[item.brandTabName] = await fetchBrandWalmart90dUnits(item.brandTabName);
+        } catch (err) {
+          console.warn(`[sync-products] ${item.brandTabName} — Walmart 90-day units lookup failed, leaving that channel's contribution blank this run:`, err.message);
+          walmart90dMaps[item.brandTabName] = {};
+        }
+      }
+
+      const rowNumber = tabNextRow[item.brandTabName];
+      // FIXED 2026-09-02 — see the ensureRowCapacity note above. This used
+      // to only increment AFTER a successful write, at the bottom of this
+      // block. That meant any failure on this SKU's write — grid-limit or
+      // otherwise — left tabNextRow stuck on the same row number, so
+      // EVERY subsequent SKU for this brand this run recomputed the exact
+      // same rowNumber, hit the exact same failing range, and failed
+      // identically — turning one root-cause failure into dozens of
+      // repeated ones (dearcloud: DEC0053 through the end of that run, all
+      // reporting the identical range). Advancing here, as soon as the row
+      // is claimed, means a single bad write leaves at most one gap in the
+      // row sequence instead of stalling every SKU behind it.
+      tabNextRow[item.brandTabName]++;
+
+      // purchased_units_90d — combined across channels. Amazon side keyed
+      // by ASIN (as before); Walmart side keyed by SKU (no ASIN concept on
+      // that marketplace). Only combined for SKUs actually flagged as
+      // selling on Walmart (master list column G) — everything else is
+      // unchanged Amazon-only behavior. Blank only if there's genuinely
+      // nothing from either applicable channel, so a real zero from one
+      // channel doesn't get masked by a blank from the other.
+      const amazonUnits = brand90dMaps[item.brandTabName][item.asin.toUpperCase()];
+      let units90d = amazonUnits ?? '';
+      if (item.sellsOnWalmart) {
+        const walmartUnits = walmart90dMaps[item.brandTabName]?.[item.sku.toUpperCase()];
+        if (amazonUnits != null || walmartUnits != null) {
+          units90d = (amazonUnits || 0) + (walmartUnits || 0);
+        }
+      }
+
+      const row = await buildProductRow(item, today, nowIso, rowNumber, units90d);
+
+      // FIXED 2026-08-14 — this used to call appendRows(), which under the
+      // hood uses Google's values:append endpoint with
+      // insertDataOption=INSERT_ROWS. That endpoint lets SHEETS decide
+      // where the row actually lands — but the formulas in buildProductRow
+      // (total_quantity, days_of_inventory, qty_on_hand) hardcode this
+      // file's OWN `rowNumber` counter, computed once per brand and just
+      // incremented in memory. Those two numbers were never guaranteed to
+      // match — if Sheets' own table-detection ever placed a row somewhere
+      // other than exactly where this file assumed (a stray blank row, a
+      // formatting quirk, anything), the formulas would silently reference
+      // the WRONG row and compute garbage with no error thrown. Writing to
+      // an EXPLICIT range instead removes the ambiguity entirely: the row
+      // number embedded in the formula strings IS the literal range being
+      // written to, always, by construction — not two systems that are
+      // merely supposed to agree.
+      const range = `${item.brandTabName}!A${rowNumber}:${COL_QTY_ON_HAND}${rowNumber}`;
+      // CHANGED 2026-11-13 — the row's main cells and its images cell go out
+      // in ONE Sheets call (values:batchUpdate), so adding images costs no
+      // extra writes. Falls back to the original single-range write if the
+      // images column isn't available on this tab.
+      if (imagesReady[item.brandTabName] && IMAGES_COL) {
+        await batchWriteRanges(tabTokens[item.brandTabName], [
+          { range, values: [row] },
+          { range: `${item.brandTabName}!${IMAGES_COL}${rowNumber}`, values: [[row.images || '']] },
+        ]);
+      } else {
+        await updateRange(sheets.products, range, [row], tabTokens[item.brandTabName], 'USER_ENTERED');
+      }
+      processed++;
+    } catch (err) {
+      console.error(`[sync-products] ${item.sku} (${item.brandTabName}) failed:`, err.message);
+      failedSkus.push(`${item.sku} (${item.brandTabName}): ${err.message}`);
+      // Continue to the next SKU — one bad SKU shouldn't stall the whole run.
+    }
+  }
+
+  const complete = i >= masterList.length;
+  try {
+    await writeMeta({
+      [metaKey('products_log_date')]:     today,
+      [metaKey('products_log_cursor')]:   String(i),
+      [metaKey('products_log_complete')]: complete ? 'true' : 'false',
+    });
+  } catch (err) {
+    console.warn('[sync-products] failed to update _meta:', err.message);
+    // This is the cursor itself — losing this write means tomorrow's run
+    // can't tell where today's pass left off. Given the whole reason this
+    // schedule was redesigned was a silent cursor problem, a failure here
+    // gets an alert every time, not just a log line.
+    await sendCronFailureAlert('sync-products', err.message, { Stage: 'persisting cursor to _meta', Group: group || '(none)', Cursor: String(i), 'Total SKUs': String(totalCount) });
+  }
+
+  if (failedSkus.length > 0) {
+    await sendCronFailureAlert(
+      'sync-products',
+      failedSkus.slice(0, 20).join('\n') + (failedSkus.length > 20 ? `\n...and ${failedSkus.length - 20} more` : ''),
+      { 'SKUs failed this run': String(failedSkus.length), Group: group || '(none)' }
+    );
+  }
+
+  res.status(200).json({
+    date: today,
+    group: group || null,
+    processedThisRun: processed,
+    skippedAlreadyWritten,
+    cursor: i,
+    totalCount,
+    complete,
+  });
+};
+
+// ── Row building ────────────────────────────────────────────────────────────
+
+async function buildProductRow(item, dateStr, nowIso, rowNumber, units90d) {
+  const { sku, asin, name } = item;
+  const sfSku = `${sku}-SF`;
+
+  // Fire all 4 API calls in parallel — the SF listing call costs no extra
+  // wall-clock time this way vs. the 3 we were already making.
+  const [listing, inventory, catalog, sfListing] = await Promise.all([
+    fetchListing(sku, item.account, item.marketplaceId).catch(err => ({ __error: err.message })),
+    fetchInventory(sku, item.account, item.marketplaceId).catch(err => ({ __error: err.message })),
+    fetchCatalog(asin, item.account, item.marketplaceId).catch(err => ({ __error: err.message })),
+    fetchListing(sfSku, item.account, item.marketplaceId).catch(() => null), // null = SF SKU doesn't exist for this product, that's fine
+  ]);
+
+  // ADDED 2026-07-22: these three errors used to be captured into
+  // {__error} and never read again anywhere — the row would still get
+  // built and written (with the corresponding fields blank), with zero
+  // trace in the logs that anything failed. Found while diagnosing
+  // Dearcloud coming back completely empty; logging now, regardless of
+  // whether it turns out to be the actual cause there.
+  if (listing?.__error)   console.error(`[sync-products] ${sku} (${item.brandTabName}) — Listings API failed:`, listing.__error);
+  if (inventory?.__error) console.error(`[sync-products] ${sku} (${item.brandTabName}) — FBA Inventory API failed:`, inventory.__error);
+  if (catalog?.__error)   console.error(`[sync-products] ${asin} (${item.brandTabName}) — Catalog Items API failed:`, catalog.__error);
+
+  const inv = inventory?.payload?.inventorySummaries?.[0]?.inventoryDetails || {};
+  // total_quantity is now a live formula (fulfillable + seller-fulfilled),
+  // NOT read from Amazon's own totalQuantity field — that field wasn't
+  // reflecting sellable inventory correctly. Inbound-working is
+  // deliberately excluded: confirmed via Amazon's FBA Inventory API docs
+  // that "Inbound" (working/shipped/receiving) is still on its way to
+  // Amazon's network, not yet fulfillable/sellable — there's no state in
+  // which those units become customer-orderable before being received.
+
+  // Merchant-fulfilled stock lives on the -SF SKU, not the FBA SKU.
+  // The DEFAULT channel on the FBA SKU's own listing always returned 0
+  // because that's a different listing — confirmed 2026-07-10.
+  const sfFulfillmentAvail  = sfListing?.attributes?.fulfillment_availability || [];
+  const sfDefaultChannel    = sfFulfillmentAvail.find(f => f.fulfillment_channel_code === 'DEFAULT');
+  const sellerFulfilledQuantity = sfDefaultChannel?.quantity ?? '';
+
+  // FIXED 2026-09-17 — real incident, creme-shop's CRE0327-label
+  // (B0D42FB2GJ): confirmed via 51 consecutive days of production data
+  // (2026-07-28 through today) that listing.attributes.bullet_point never
+  // once populated for this SKU, while a direct ?testAsin diagnostic call
+  // against the SAME ASIN showed catalog.attributes.bullet_point WITH 5
+  // real bullets. This is a known SP-API gap, not ASIN-specific — the
+  // Listings API's attributes response doesn't reliably reflect bullet
+  // points even when they're live on the actual listing, while the
+  // Catalog API's bullet_point field does. Falls back to catalog only
+  // when listing's own array is empty, so a SKU whose listing DOES have
+  // bullets (the common case) is completely unaffected.
+  const bullets = listing?.attributes?.bullet_point?.length
+    ? listing.attributes.bullet_point
+    : (catalog?.attributes?.bullet_point || []);
+  const bulletVal = idx => bullets[idx]?.value || '';
+
+  const b2cOffer = (listing?.offers || []).find(o => o.offerType === 'B2C');
+  const offersStr = b2cOffer ? `${b2cOffer.price?.currencyCode || ''} ${b2cOffer.price?.amount || ''}`.trim() : '';
+
+  // CHANGED 2026-11-13 — each issue also carries Amazon's enforcement
+  // actions (e.g. LISTING_SUPPRESSED, ATTRIBUTE_SUPPRESSED, CATALOG_ITEM_REMOVED)
+  // and issue categories (e.g. INVALID_IMAGE) in {braces} at the end, so the
+  // Listing Alerts email can tell a real suppression from a warning. Same
+  // column and same "[SEVERITY] attrs: message" start as before.
+  const issuesStr = (listing?.issues || [])
+    .map(iss => {
+      const tags = [
+        ...((iss.enforcements?.actions || []).map(a => a.action).filter(Boolean)),
+        ...((iss.categories || []).filter(Boolean)),
+      ];
+      return `[${iss.severity}] ${(iss.attributeNames || []).join(',')}: ${iss.message}${tags.length ? ` {${[...new Set(tags)].join('; ')}}` : ''}`;
+    })
+    .join(' | ');
+
+  const salesRanksStr = (catalog?.salesRanks?.[0]?.classificationRanks || [])
+    .map(r => `${r.title} (#${r.rank})`)
+    .join('; ');
+
+  const imagesStr = imageSlots(catalog); // ADDED 2026-11-13 — carried on the row, not one of its 31 cells
+  return Object.assign([
+    dateStr,
+    sku,
+    asin,
+    inv.fulfillableQuantity ?? '',
+    inv.reservedQuantity?.totalReservedQuantity ?? '',
+    inv.inboundWorkingQuantity ?? '',
+    inv.inboundShippedQuantity ?? '',
+    inv.inboundReceivingQuantity ?? '',
+    inv.unfulfillableQuantity?.totalUnfulfillableQuantity ?? '',
+    sellerFulfilledQuantity,
+    // total_quantity ("Available") — live formula: qty_on_hand minus
+    // allocated (reserved). Not computed independently from
+    // fulfillable+seller_fulfilled anymore — it's explicitly derived FROM
+    // qty_on_hand, per exact definition given 2026-07-20. Numerically this
+    // still lands on fulfillable+seller_fulfilled (reserved cancels out:
+    // (fulfillable+reserved+seller_fulfilled) - reserved), but the formula
+    // itself now matches the stated derivation rather than coincidentally
+    // producing the same number.
+    `=${COL_QTY_ON_HAND}${rowNumber}-${COL_RESERVED}${rowNumber}`,
+    name || '', // from master sheet, NOT the API — per requirements
+    (listing?.summaries?.[0]?.status || []).join(', '),
+    salesRanksStr,
+    listing?.summaries?.[0]?.itemName || listing?.attributes?.item_name?.[0]?.value || '',
+    // CONFIRMED 2026-08-12 via the ?testSku diagnostic endpoint against a
+    // real ASIN (EVO0001/B08BJBM77V) — item_highlights genuinely does not
+    // exist anywhere in the API response (checked listing.attributes,
+    // catalog.attributes, AND sfListing.attributes — absent from all
+    // three, not just blank). Amazon's real equivalent is
+    // title_differentiation: "Clinically tested hair growth serum -
+    // FGF5-blocking formula targets thinning hair and postpartum
+    // shedding in women and men." — verified by Jaclyn against the
+    // actual live listing as matching what Amazon displays as Item
+    // Highlights. Column name in the sheet stays item_highlights
+    // (matches what the dashboard already reads); only the API source
+    // attribute changed.
+    //
+    // UPDATED 2026-09-17 — see the bullets fallback comment above this
+    // function's catalog-fetch section: title_differentiation gets the
+    // same catalog-attributes fallback now, for the same confirmed reason
+    // (listing.attributes doesn't reliably return it; catalog does).
+    listing?.attributes?.title_differentiation?.[0]?.value || catalog?.attributes?.title_differentiation?.[0]?.value || '',
+    bulletVal(0), bulletVal(1), bulletVal(2), bulletVal(3), bulletVal(4),
+    listing?.attributes?.product_description?.[0]?.value || catalog?.attributes?.product_description?.[0]?.value || '',
+    listing?.attributes?.generic_keyword?.[0]?.value || '',
+    listing?.attributes?.ingredients?.[0]?.value || '',
+    listing?.attributes?.item_type_keyword?.[0]?.value || catalog?.attributes?.item_type_keyword?.[0]?.value || '',
+    offersStr,
+    issuesStr,
+    nowIso,
+    units90d, // purchased_units_90d — summed from the rolling 90-day orders cache, blank if that lookup failed this run
+    // days_of_inventory — live formula, guarded against divide-by-zero/blank
+    // (N() coerces blank to 0 so the IF check works even if units90d is '').
+    `=IF(N(${COL_PURCHASED_90D}${rowNumber})=0,"",${COL_TOTAL_QUANTITY}${rowNumber}/(${COL_PURCHASED_90D}${rowNumber}/90))`,
+    // qty_on_hand — live formula: fulfillable + reserved + seller-fulfilled.
+    // Deliberately excludes unfulfillable_quantity (damaged/expired stock)
+    // AND inbound (still in transit, not physically on hand yet) — per
+    // exact definition given 2026-07-20.
+    `=${COL_FULFILLABLE}${rowNumber}+${COL_RESERVED}${rowNumber}+${COL_SELLER_FULFILLED}${rowNumber}`,
+  ], { images: imagesStr });
+}
+
+// ── API calls ───────────────────────────────────────────────────────────────
+
+// account ADDED 2026-10-06 — defaults to NewDerm. The seller ID in the
+// Listings path must be the SKU's own account's, or Amazon says not found.
+function fetchListing(sku, account = 'newderm', marketplaceId = process.env.SP_MARKETPLACE_ID) {
+  return spRequest(
+    'GET',
+    `/listings/2021-08-01/items/${getSellerId(account)}/${encodeURIComponent(sku)}`,
+    {
+      marketplaceIds: marketplaceId || process.env.SP_MARKETPLACE_ID,
+      includedData: 'summaries,attributes,issues,offers,fulfillmentAvailability,procurement',
+    },
+    null,
+    account
+  );
+}
+
+function fetchInventory(sku, account = 'newderm', marketplaceId = process.env.SP_MARKETPLACE_ID) {
+  return spRequest(
+    'GET',
+    '/fba/inventory/v1/summaries',
+    {
+      granularityType: 'Marketplace',
+      granularityId:   marketplaceId || process.env.SP_MARKETPLACE_ID,
+      marketplaceIds:  marketplaceId || process.env.SP_MARKETPLACE_ID,
+      details:         'true',
+      sellerSkus:      sku,
+    },
+    null,
+    account
+  );
+}
+
+function fetchCatalog(asin, account = 'newderm', marketplaceId = process.env.SP_MARKETPLACE_ID) {
+  return spRequest(
+    'GET',
+    `/catalog/2022-04-01/items/${asin}`,
+    {
+      marketplaceIds: marketplaceId || process.env.SP_MARKETPLACE_ID,
+      includedData:   'attributes,images,productTypes,salesRanks,summaries,dimensions',
+    },
+    null,
+    account
+  );
+}
+
+// ── Master SKU list ───────────────────────────────────────────────────────
+
+function stripAccents(str) {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+// FIXED 2026-08-13 — skinuva-ca (config/brands.js) shares "skinuva" as a
+// substring of its own id ('skinuva-ca'.includes('skinuva')), so any
+// master-list row whose brand column contains "skinuva" satisfied BOTH
+// brands' matching conditions below. brands.find() returns the FIRST
+// match in array order, and skinuva is listed before skinuva-ca — so
+// EVERY skinuva-labeled row, including genuinely Canadian ones, was
+// silently attributed to plain skinuva. skinuva-ca was getting zero rows
+// from the master list, meaning this cron never synced its inventory or
+// listing data at all. Same root cause and same fix as the identical bug
+// found in sync-sqp-request.js, sync-orders-process.js, and
+// sync-revenue-process.js earlier — disambiguate by the SKU's own "-CA"
+// suffix before falling back to brand-name matching.
+const CA_SKU_PATTERN = /-CA(-|\.|$)/i;
+
+function resolveBrandForSku(sku, candidates) {
+  if (candidates.length === 1) return candidates[0];
+  const isCa    = CA_SKU_PATTERN.test(sku);
+  const caBrand = candidates.find(b => (b.salesChannel || '').toLowerCase() === 'amazon.ca');
+  const usBrand = candidates.find(b => (b.salesChannel || '').toLowerCase() === 'amazon.com');
+  if (isCa && caBrand) return caBrand;
+  if (!isCa && usBrand) return usBrand;
+  return usBrand || candidates[0];
+}
+
+// Whole-file, quote-aware CSV reader (ADDED 2026-11-13): commas and line
+// breaks inside quoted cells stay inside the cell.
+function parseCsvText(text) {
+  const rows = []; let row = [], cur = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true;
+    else if (c === ',') { row.push(cur); cur = ''; }
+    else if (c === '\n') { row.push(cur); rows.push(row); row = []; cur = ''; }
+    else if (c !== '\r') cur += c;
+  }
+  if (cur || row.length) { row.push(cur); rows.push(row); }
+  return rows.filter(r => r.some(x => String(x).trim()));
+}
+
+async function fetchMasterSkuList() {
+  const csvUrl = `https://docs.google.com/spreadsheets/d/${MASTER_SHEET_ID}/export?format=csv&gid=${MASTER_SHEET_GID}`;
+  const resp   = await fetch(csvUrl);
+  if (!resp.ok) throw new Error(`Failed to fetch master SKU list: ${resp.status}`);
+  const csv   = await resp.text();
+  // FIXED 2026-11-13 — read the CSV properly. The old split(',') / split('\n')
+  // broke any row with a comma in a quoted cell (columns shifted, so Brand /
+  // Channel / Status were read from the wrong place and the SKU was skipped)
+  // or a line break in one (the long copy columns P–Y now hold multi-line text).
+  const table = parseCsvText(csv).slice(1);
+
+  const out = [];
+  for (const row of table) {
+    const cols      = row.map(c => String(c || '').trim());
+    const asin      = cols[0] || '';
+    const sku       = cols[1] || '';
+    const name      = cols[2] || '';
+    const rawBrand  = (cols[3] || '').trim();
+    const brandNorm = stripAccents(rawBrand.toLowerCase());
+    // Column G — channel. Values seen: "Amazon", "Walmart", "Amazon / Walmart".
+    // Only SKUs whose channel mentions Walmart get a Walmart 90d units lookup;
+    // everyone else behaves exactly as before (Amazon-only).
+    const rawChannel     = (cols[6] || '').trim();
+    const channelNorm    = stripAccents(rawChannel.toLowerCase());
+    const sellsOnWalmart = channelNorm.includes('walmart');
+    // Column H — Status. ADDED 2026-08-31 per Jaclyn — this cron
+    // previously had no status filter at all: every row on the master
+    // list with a valid ASIN+SKU and a matching active brand got synced
+    // daily, regardless of whether the product was actually still live.
+    // A discontinued/deleted SKU still sitting on the master list would
+    // get a real row every single day, indefinitely — real, unnecessary
+    // row growth directly contributing to the same grid-size pressure
+    // that hit creme-shop. Case-insensitive comparison since sheet data
+    // entry isn't always perfectly consistent.
+    const rawStatus = (cols[7] || '').trim();
+    if (rawStatus.toUpperCase() !== 'LIVE') continue;
+
+    if (!asin || !sku) continue;
+    if (sku.toUpperCase().startsWith('C-SVA')) continue; // website-only inventory, not Amazon
+    if (EXCLUDED_BRAND_NAMES.some(x => brandNorm.includes(x))) continue;
+
+    // CHANGED 2026-11-13 — also compare with spaces, hyphens and punctuation
+    // removed, so "HighOnLove", "High On Love" and "high-on-love" all match.
+    const squash = v => stripAccents(String(v || '').toLowerCase()).replace(/[^a-z0-9]/g, '');
+    const brandSq = squash(rawBrand);
+    const nameMatched = brands.find(b =>
+      b.active && (
+        brandNorm === stripAccents(b.id.toLowerCase()) ||
+        brandNorm === stripAccents((b.displayName || '').toLowerCase()) ||
+        brandNorm.includes(stripAccents(b.id.toLowerCase())) ||
+        (brandSq && (brandSq === squash(b.id) || brandSq === squash(b.displayName) || brandSq === squash(b.amazonBrandName)))
+      )
+    );
+    if (!nameMatched) {
+      console.log(`[sync-products] unmatched brand in master sheet: "${rawBrand}" (asin ${asin}) — skipped`);
+      continue;
+    }
+    // Name matching alone can't distinguish skinuva from skinuva-ca — the
+    // master sheet almost certainly labels both "skinuva" regardless of
+    // marketplace (it's the same company brand), and skinuva-ca's id can
+    // never satisfy brandNorm.includes('skinuva-ca') when brandNorm is
+    // just "skinuva" (a shorter string can't contain a longer one). Instead,
+    // find the real sibling set via shared SKU PREFIX (not name), then
+    // disambiguate those siblings using the SKU's own "-CA" suffix.
+    const siblings = brands.filter(b =>
+      b.active && b.skuPrefix && nameMatched.skuPrefix && b.skuPrefix === nameMatched.skuPrefix
+    );
+    const matched = siblings.length > 1 ? resolveBrandForSku(sku, siblings) : nameMatched;
+
+    // account ADDED 2026-10-06 — each SKU's Amazon calls use the seller
+    // account its brand belongs to (High On Love vs NewDerm).
+    // marketplaceId ADDED 2026-11-13 — a brand's own marketplace (skinuva-ca →
+    // Amazon.ca) for its Listings / inventory / catalog calls. Every call used
+    // to ask Amazon.com, so Canadian listings came back with no contributions.
+    out.push({ asin, sku, name, brandTabName: matched.tabName, sellsOnWalmart, account: accountForBrand(matched),
+      marketplaceId: matched.marketplaceId || process.env.SP_MARKETPLACE_ID });
+  }
+  return out;
+}
+
+// CHANGED 2026-08-13 — these two functions used to re-read each brand's
+// FULL orders history live, on every single 15-minute run (36x/day). For
+// a brand like skinuva (~7,200 rows) or creme-shop (~6,800 rows), that
+// was a genuinely large read repeated far more often than the underlying
+// number actually changes — this figure only meaningfully shifts day to
+// day, not minute to minute. sync-90d-units-cache.js now does this exact
+// same computation once daily and writes the result to a small
+// pre-computed cache tab; these functions just read that cache instead.
+// Return shape is UNCHANGED ({ [asin]: units } / { [sku]: units }), so
+// every caller of these two functions works exactly as before — only the
+// data source moved, not the interface.
+async function fetchBrand90dUnits(brandTabName) {
+  const rows = await readRows(UNITS_90D_CACHE_SHEET_ID, brandTabName).catch(err => {
+    console.warn(`[sync-products] ${brandTabName} — 90-day units cache read failed (leaving purchased_units_90d blank this run): ${err.message}`);
+    return [];
+  });
+  const map = {};
+  (rows || []).forEach(r => {
+    if ((r.type || '').toLowerCase() !== 'amazon') return;
+    const key = (r.key || '').trim().toUpperCase();
+    if (!key) return;
+    map[key] = parseInt(r.units_90d, 10) || 0;
+  });
+  return map;
+}
+
+// Walmart counterpart — same cache tab, filtered to the 'walmart' rows
+// (keyed by SKU, since Walmart has no ASIN concept). Only called for
+// brands that have at least one sellsOnWalmart SKU, and only once per
+// brand per run (cached by the caller), same as the Amazon lookup.
+async function fetchBrandWalmart90dUnits(brandTabName) {
+  const rows = await readRows(UNITS_90D_CACHE_SHEET_ID, brandTabName).catch(err => {
+    console.warn(`[sync-products] ${brandTabName} — 90-day Walmart units cache read failed (leaving that channel's contribution blank this run): ${err.message}`);
+    return [];
+  });
+  const map = {};
+  (rows || []).forEach(r => {
+    if ((r.type || '').toLowerCase() !== 'walmart') return;
+    const key = (r.key || '').trim().toUpperCase();
+    if (!key) return;
+    map[key] = parseInt(r.units_90d, 10) || 0;
+  });
+  return map;
+}
+
+// FIXED 2026-09-17 — real incident: since ~2026-09-02, when the `date`
+// column started getting auto-converted by Sheets from plain text into
+// real date-typed cells, any read using 'FORMULA' render mode (needed by
+// clearRowsForDate below to protect total_quantity/days_of_inventory's
+// live formulas from being flattened on rewrite) returns a PLAIN DATE
+// CELL as its raw Sheets serial number (e.g. 46648), not a string — while
+// the default render mode returns it as a formatted display string that
+// may or may not be ISO depending on the column's actual number format.
+// Comparing either of those directly against a "YYYY-MM-DD" string with
+// !== / === silently never matches, which is exactly why
+// clearRowsForDate's "remove today's rows" comparison was quietly a
+// no-op for weeks: kept.length was always equal to rows.length, so the
+// write-back that's supposed to delete today's rows never fired, and
+// four consecutive ?force=true calls today each APPENDED a fresh batch
+// instead of replacing the previous one — hence creme-shop's duplicate
+// CRE0001–CRE0233 rows for 2026-09-17. Normalizing here means the
+// comparison works correctly regardless of whether a given cell is
+// still plain text or has been auto-converted to a real date, without
+// needing to change either read's render mode.
+function normalizeSheetDate(value) {
+  if (value == null || value === '') return '';
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.slice(0, 10); // already ISO text — most rows today
+  }
+  const num = typeof value === 'number' ? value : parseFloat(value);
+  if (!isNaN(num) && num > 0) {
+    // Google Sheets' own date epoch is Dec 30, 1899 (UTC) — day 0.
+    const epochMs = Date.UTC(1899, 11, 30);
+    const d = new Date(epochMs + num * 86400000);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+  }
+  return String(value);
+}
+
+// Removes every row matching `dateStr` from every brand tab in `brandList`
+// (defaults to every active brand), leaving all other dates' history
+// untouched. Used by ?force=true to support "overwrite today" without
+// duplicating rows or losing history. ADDED 2026-08-14: accepts an
+// explicit brand list so a group-scoped ?force=true run only clears that
+// group's brands, never the other group's.
+async function clearRowsForDate(dateStr, brandList = brands.filter(b => b.active)) {
+  for (const brand of brandList) {
+    try {
+      const token = await ensureTab(sheets.products, brand.tabName, SHEET_HEADERS);
+      const rows  = await readRows(sheets.products, brand.tabName, 'FORMULA'); // preserve formula text, not computed values
+      rows.forEach((r, i) => { r.__row = i + 2; }); // original sheet row (readRows keeps one entry per row)
+      const kept  = rows.filter(r => normalizeSheetDate(r.date) !== dateStr);
+      if (kept.length !== rows.length) {
+        // CHANGED 2026-10-20 — rewrite using the tab's OWN columns (readRows
+        // keys every row by row 1), not this file's HEADERS: otherwise a
+        // force run wiped every column after qty_on_hand (the offer columns
+        // from sync-product-offers.js) on every row of the tab.
+        const cols = (rows.length && HEADERS.every(h => h in rows[0]) ? Object.keys(rows[0]) : SHEET_HEADERS).filter(h => h !== '__row');
+        // Rows below a removed one move up; renumber each formula's own-row
+        // references so they keep pointing at their own row (ADDED 2026-10-21).
+        const rowArrays = kept.map((r, j) => cols.map(h => moveOwnRowRefs(r[h] ?? '', r.__row, j + 2)));
+        await replaceRows(sheets.products, brand.tabName, cols, rowArrays, token, 'USER_ENTERED');
+        console.log(`[sync-products] ${brand.id} — cleared ${rows.length - kept.length} existing rows for ${dateStr}`);
+      }
+    } catch (err) {
+      console.warn(`[sync-products] ${brand.id} — failed to clear rows for ${dateStr}:`, err.message);
+      // Don't throw — a brand with no tab yet (e.g. never synced before) is fine to skip.
+    }
+  }
+}
+
+// ── _meta helpers ────────────────────────────────────────────────────────
+
+async function readMeta() {
+  const rows = await readRows(sheets.products, META_TAB);
+  const map  = {};
+  (rows || []).forEach(r => { if (r.KEY) map[r.KEY] = r.VALUE; });
+  return map;
+}
+
+async function writeMeta(updates) {
+  const token = await ensureTab(sheets.products, META_TAB, META_HEADERS);
+  const nowIso = toEstIso(new Date()); // FIXED 2026-08-19 -- was UTC
+  const existing = await readRows(sheets.products, META_TAB);
+  const map = {};
+  (existing || []).forEach(r => { if (r.KEY) map[r.KEY] = [r.KEY, r.VALUE, r.UPDATED_AT]; });
+  Object.entries(updates).forEach(([k, v]) => { map[k] = [k, v, nowIso]; });
+  await replaceRows(sheets.products, META_TAB, META_HEADERS, Object.values(map), token);
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// Same helper already proven in sync-fbm-returns-process.js /
+// sync-returns-process.js — formats Eastern wall-clock time as an
+// ISO-shaped string ending in "Z", so it displays consistently with
+// every other Eastern-anchored timestamp in this project rather than
+// UTC. Not a literal UTC timestamp despite the "Z" suffix — a
+// deliberate, consistent convention used throughout this codebase.
+function toEstIso(date) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  }).formatToParts(date);
+  const p = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}.000Z`;
+}
+
+// ADDED 2026-10-21 — sync-products.js writes formulas that reference their
+// OWN row by number (e.g. "=D57+E57+J57", "=AE57-E57"). When a rewrite moves
+// a row (trimming old rows from the top shifts everything up), those
+// numbers must move with it, or every formula ends up adding up some other
+// SKU's numbers. Rewrites a formula's references to oldRow so they point at
+// newRow; anything else (including numbers like the 90 in "/90") is left alone.
+function moveOwnRowRefs(value, oldRow, newRow) {
+  if (typeof value !== 'string' || !value.startsWith('=') || oldRow === newRow) return value;
+  return value.replace(/(\$?[A-Z]{1,3}\$?)(\d+)(?![\d(])/g, (m, col, num) => (Number(num) === oldRow ? `${col}${newRow}` : m));
+}
+
+// ── Images column (ADDED 2026-11-13) ──────────────────────────────────────
+// One cell per SKU per day: each image slot's current Amazon image ID, from
+// the catalog response this file already fetches (includedData: images).
+// "MAIN:71aBc… | PT01:81xYz… | …" — the ID is the image file name in the
+// link, which changes whenever the picture in that slot is replaced.
+function imageSlots(catalog) {
+  const sets = Array.isArray(catalog?.images) ? catalog.images : [];
+  const best = {};
+  for (const set of sets) {
+    for (const im of set.images || []) {
+      if (!im?.variant || !im?.link) continue;
+      const area = (im.height || 0) * (im.width || 0);
+      if (!best[im.variant] || area > best[im.variant].area) best[im.variant] = { area, link: im.link };
+    }
+  }
+  const order = v => (v === 'MAIN' ? '0' : v.startsWith('PT') ? '1' + v : v === 'SWCH' ? '9' : '5' + v);
+  return Object.keys(best).sort((a, b) => order(a).localeCompare(order(b)))
+    .map(v => `${v}:${String(best[v].link).split('/').pop().replace(/\.[a-z0-9]+$/i, '')}`)
+    .join(' | ');
+}
+
+function colLetterOf(i) {
+  if (i < 0) return null;
+  let s = ''; i++; while (i) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); }
+  return s;
+}
+
+// Per tab, once per run: widen the grid if needed and label the column.
+const imagesReady = {};
+let productsGridCache = null;
+async function prepareImagesColumn(tabName, token) {
+  if (imagesReady[tabName] || !IMAGES_COL) return;
+  const idx = SHEET_HEADERS.indexOf('images');
+  if (!productsGridCache) {
+    const meta = await sheetsCall(token, 'GET', `/${sheets.products}?fields=sheets.properties(sheetId,title,gridProperties)`);
+    productsGridCache = Object.fromEntries((meta.sheets || []).map(x => [x.properties.title, x.properties]));
+  }
+  const props = productsGridCache[tabName];
+  if (props && (props.gridProperties?.columnCount || 0) < idx + 1) {
+    await sheetsCall(token, 'POST', `/${sheets.products}:batchUpdate`, { requests: [{ appendDimension: {
+      sheetId: props.sheetId, dimension: 'COLUMNS', length: idx + 1 - props.gridProperties.columnCount } }] });
+    props.gridProperties.columnCount = idx + 1;
+  }
+  await batchWriteRanges(token, [{ range: `${tabName}!${IMAGES_COL}1`, values: [['images']] }]);
+  imagesReady[tabName] = true;
+}
+
+async function batchWriteRanges(token, data) {
+  return sheetsCall(token, 'POST', `/${sheets.products}/values:batchUpdate`, { valueInputOption: 'USER_ENTERED', data });
+}
+
+// Sheets REST call with the same quota-aware retry as config/_sheets_client.js.
+async function sheetsCall(token, method, path, body) {
+  const waits = [2000, 4000, 8000, 16000, 20000, 30000];
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets${path}`, {
+      method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (res.ok) return res.json();
+    const text = await res.text();
+    const retryable = res.status === 429 || (res.status >= 500 && attempt < 4);
+    if (retryable && attempt < waits.length) { await new Promise(r => setTimeout(r, waits[attempt] + Math.floor(Math.random() * 1500))); continue; }
+    throw new Error(`Sheets ${method} ${res.status}: ${text.slice(0, 200)}`);
+  }
+}
