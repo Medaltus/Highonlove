@@ -15641,6 +15641,7 @@ window.initEventStrategyHeader = async function () {
     const legendEl = document.getElementById(`${prefix}-legend`);
     if (legendEl) legendEl.innerHTML = `<span><i style="background:#8a94a6;"></i>${prevYear}</span><span><i style="background:#1b2559;"></i>${currYear}</span>`;
 
+    const hideYoyPct = prefix === 'pbdd';
     const yoyLabelPlugin = {
       id: `${prefix}YoyLabels`,
       afterDatasetsDraw(chart) {
@@ -15677,7 +15678,9 @@ window.initEventStrategyHeader = async function () {
         });
         ctx.font = `700 ${10 * s}px 'Montserrat', sans-serif`;
         ctx.textAlign = 'left';
-        entries.forEach((e, i) => {
+        // Prime Big Deal Days: no YOY % boxes (2026-11-24 per Jaclyn) — the
+        // unit counts on the bars stay, only the % change is hidden.
+        if (!hideYoyPct) entries.forEach((e, i) => {
           const p = pct(e.curr, e.prev);
           const label = `${p > 0 ? '+' : ''}${p}%`;
           const isGood = p >= 0;
@@ -15717,12 +15720,13 @@ window.initEventStrategyHeader = async function () {
         indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { right: 64 } },
+        layout: { padding: { right: hideYoyPct ? 12 : 64 } },
         plugins: {
           legend: { display: false },
           tooltip: {
             callbacks: {
               afterBody: (items) => {
+                if (hideYoyPct) return [];
                 const e = entries[items[0].dataIndex];
                 return [`YOY: ${pct(e.curr, e.prev) > 0 ? '+' : ''}${pct(e.curr, e.prev)}%`];
               }
