@@ -24896,7 +24896,9 @@ async function loadAuditResultsFromSheet() {
     // reason. Confirmed 2026-07-21 as the actual cause of KPI text getting
     // cut off at the page's right edge.
     const topKpis = [
-      { label: 'Shipped Orders (30d)', value: pdfxText('#mfc-kpi-shipped30') },
+      // Label shortened to fit the nowrap 1/5-width column; the 30-day window
+      // goes in the sub-line instead (2026-11-24, "Website Orders" per Jaclyn).
+      { label: 'Website Orders Shipped', value: pdfxText('#mfc-kpi-shipped30'), sub: 'Last 30 days' },
       { label: 'Fulfillment Promise (7d)', value: '100%' },
       { label: 'Avg Processing Time (7d)', value: pdfxText('#mfc-kpi-proctime') },
       { label: 'Avg Shipping Cost (7d)', value: pdfxText('#mfc-kpi-shipcost') },
@@ -24941,7 +24943,7 @@ async function loadAuditResultsFromSheet() {
       return '<div class="pdfx-kpi">' +
         '<div class="pdfx-kpi-lbl">' + pdfxEscape(k.label) + '</div>' +
         '<div class="pdfx-kpi-val" style="white-space:nowrap;">' + valHtml + '</div>' +
-        '<div class="pdfx-kpi-mom flat"></div>' +
+        '<div class="pdfx-kpi-mom flat">' + pdfxEscape(k.sub || '') + '</div>' +
         '</div>';
     }
 
@@ -24978,17 +24980,15 @@ async function loadAuditResultsFromSheet() {
           '<div class="pdfx-chlabel">Fulfillment Performance</div>' +
           '<div class="pdfx-kpis" style="margin-top:6px;">' + topKpis.map(kpiCardPlain).join('') + '</div>' +
           '<div class="pdfx-card" style="margin-top:14px;margin-bottom:0;">' +
-            '<div class="pdfx-card-title">Orders Shipped by Date · Last 30 Days</div>' +
+            '<div class="pdfx-card-title">Website Orders Shipped by Date · Last 30 Days</div>' +
             pdfxChartBlock('mfcShippedChartInstance', 'Chart not yet loaded — open this tab once on the dashboard, then re-export.') +
           '</div>' +
-          '<div class="pdfx-chlabel" style="margin-top:16px;">Customer Service</div>' +
-          '<div class="pdfx-kpis n3" style="margin-top:6px;">' + csKpis.map(kpiCardWithSub).join('') + '</div>' +
           // Map card: no border/padding (perimeter removed per Jaclyn
           // 2026-10-01) — keeps this page under 11in so the render service
           // doesn't zoom it down (which is what caused side whitespace).
           '<div class="pdfx-card" style="margin-top:14px;margin-bottom:0;border:none;padding:0;">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;">' +
-              '<div class="pdfx-card-title" style="margin-bottom:0;">Orders by State · Last 30 Days</div>' +
+              '<div class="pdfx-card-title" style="margin-bottom:0;">Website Orders by State · Last 30 Days</div>' +
               '<div style="display:flex;align-items:center;gap:6px;font-size:9px;color:var(--muted);">' +
                 '<span>Fewer</span>' +
                 '<div style="width:60px;height:6px;border-radius:3px;background:linear-gradient(to right,#dce6f5,#001F60);"></div>' +
@@ -24997,6 +24997,10 @@ async function loadAuditResultsFromSheet() {
             '</div>' +
             mapHtml +
           '</div>' +
+          // Customer Service moved below the map (2026-11-24 per Jaclyn) so all
+          // fulfillment content (KPIs, chart, map) sits together at the top.
+          '<div class="pdfx-chlabel" style="margin-top:16px;">Customer Service</div>' +
+          '<div class="pdfx-kpis n3" style="margin-top:6px;">' + csKpis.map(kpiCardWithSub).join('') + '</div>' +
         '</div>' +
       '</div>';
   }
