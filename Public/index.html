@@ -8060,6 +8060,13 @@ async function initSns() {
       const skipped = [];
       withDate.forEach(x => {
         const r = x.row;
+        // FIXED 2026-11-24 per Jaclyn: skip the current (incomplete) month and
+        // anything later. The chart already stops at the last full month, but
+        // the KPI used the newest row in the sheet — so once the cron wrote the
+        // new month's row, the KPI showed this month (e.g. Nov 14, ▲ vs Oct)
+        // while the chart ended at Oct (13). KPI + MOM now = last full month
+        // vs the month before it, matching the chart.
+        { const _n = new Date(); if (!isNaN(x.y) && !isNaN(x.m) && (x.y * 12 + x.m) >= (_n.getFullYear() * 12 + _n.getMonth() + 1)) return; }
         const total = num(r.total_subscriptions ?? r.total_subs ?? r.subscriptions ?? r.active_subscriptions);
         if (total === null || total === 0) { skipped.push(x.y + '-' + x.m); return; }
         const label = (!isNaN(x.y) && !isNaN(x.m)) ? `${monthAbbr[x.m - 1]} '${String(x.y).slice(2)}` : (r.month_label || r.month || r.date || '');
@@ -13054,6 +13061,13 @@ async function initSnsExternal() {
       const skipped = [];
       withDate.forEach(x => {
         const r = x.row;
+        // FIXED 2026-11-24 per Jaclyn: skip the current (incomplete) month and
+        // anything later. The chart already stops at the last full month, but
+        // the KPI used the newest row in the sheet — so once the cron wrote the
+        // new month's row, the KPI showed this month (e.g. Nov 14, ▲ vs Oct)
+        // while the chart ended at Oct (13). KPI + MOM now = last full month
+        // vs the month before it, matching the chart.
+        { const _n = new Date(); if (!isNaN(x.y) && !isNaN(x.m) && (x.y * 12 + x.m) >= (_n.getFullYear() * 12 + _n.getMonth() + 1)) return; }
         const total = num(r.total_subscriptions ?? r.total_subs ?? r.subscriptions ?? r.active_subscriptions);
         if (total === null || total === 0) { skipped.push(x.y + '-' + x.m); return; }
         const label = (!isNaN(x.y) && !isNaN(x.m)) ? `${monthAbbr[x.m - 1]} '${String(x.y).slice(2)}` : (r.month_label || r.month || r.date || '');
@@ -25102,12 +25116,17 @@ async function loadAuditResultsFromSheet() {
     // Accomplished + Future Opportunities only, matching the live page.
     return '' +
       '<div class="pdfx-page">' +
-        '<div class="pdfx-inner" style="padding:22px 46px 26px;">' +
+        // Footer pinned to the bottom of the page (2026-11-24 per Jaclyn) —
+        // absolutely positioned inside .pdfx-page (position:relative), not
+        // after the content. The inner's bottom padding reserves the footer's
+        // space, so pdfxGrowAccomplishedImages (which measures .pdfx-inner)
+        // still sizes the images to leave room for it.
+        '<div class="pdfx-inner" style="padding:22px 46px 84px;">' +
           pdfxHeaderBand(monthYear, 'Opportunities') +
           pdfxAccomplishedBlock() +
           pdfxFutureOpportunitiesBlock() +
-          pdfxFooter(monthYear, true) +
         '</div>' +
+        '<div style="position:absolute;left:46px;right:46px;bottom:26px;">' + pdfxFooter(monthYear, true) + '</div>' +
       '</div>';
   }
 
