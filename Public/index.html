@@ -1325,6 +1325,14 @@ details.inci-toggle[open] summary::before{content:'▾ ';}
 .pdfx-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:0;margin-bottom:18px;}
 .pdfx-kpis.n3{grid-template-columns:repeat(3,1fr);}
 .pdfx-kpis.n2{grid-template-columns:repeat(2,1fr);}
+/* .fit (2026-11-24, HOL Fulfillment page): plain 1fr columns grow to fit a
+   nowrap label, which pushed the 5th card off the page. minmax(0,1fr) keeps
+   every column exactly 1/5; labels may wrap to two lines (min-height keeps
+   the values in one row) and cards get a little less side padding. */
+.pdfx-kpis.fit{grid-template-columns:repeat(5,minmax(0,1fr));}
+.pdfx-kpis.fit .pdfx-kpi{padding:18px 12px;min-width:0;}
+.pdfx-kpis.fit .pdfx-kpi-lbl{white-space:normal;line-height:1.3;min-height:2.6em;margin-bottom:7px;}
+.pdfx-kpis.fit .pdfx-kpi-val{font-size:26px;}
 .pdfx-kpi{border:1px solid var(--border);border-radius:0;padding:20px 16px;background:#fbfbfd;margin-left:-1px;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;}
 .pdfx-kpi:first-child{margin-left:0;}
 .pdfx-kpi-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;margin-bottom:9px;white-space:nowrap;}
@@ -24982,7 +24990,7 @@ async function loadAuditResultsFromSheet() {
         '<div class="pdfx-inner" style="padding-bottom:0;">' +
           pdfxHeaderBand(monthYear, 'Fulfillment & Customer Service') +
           '<div class="pdfx-chlabel">Fulfillment Performance</div>' +
-          '<div class="pdfx-kpis" style="margin-top:6px;">' + topKpis.map(kpiCardPlain).join('') + '</div>' +
+          '<div class="pdfx-kpis fit" style="margin-top:6px;">' + topKpis.map(kpiCardPlain).join('') + '</div>' +
           '<div class="pdfx-card" style="margin-top:14px;margin-bottom:0;">' +
             '<div class="pdfx-card-title">Website Orders Shipped by Date · Last 30 Days</div>' +
             pdfxChartBlock('mfcShippedChartInstance', 'Chart not yet loaded — open this tab once on the dashboard, then re-export.') +
